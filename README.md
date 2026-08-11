@@ -71,20 +71,21 @@ Fase 1).
 
 ## Qué se verificó realmente en esta máquina, y qué no
 
-Este entorno de desarrollo no tiene Flutter SDK ni `docker compose` (Docker corre en modo
-contenedores de Windows, no Linux, así que las imágenes `postgres:16-alpine`/`redis:7-alpine`
-tampoco se pudieron levantar aquí). Por transparencia:
+Por transparencia, esto es lo que se ejecutó de verdad y lo que no. Postgres y Redis se instalaron
+como binarios nativos de Windows, porque el Docker de esta máquina corre en modo contenedores de
+Windows y no puede levantar imágenes Linux.
 
-| Componente | Verificado aquí | Cómo |
+| Componente | Verificado | Cómo |
 |---|---|---|
-| `apps/api-gateway` (NestJS) | ✅ Sí | `npm install && npm run build && npm run lint && npm run test` — todo pasa. La e2e (`test/health.e2e-spec.ts`) requiere Postgres/Redis vivos y no se ejecutó. |
-| `apps/quant-service` (Python) | ✅ Sí | `pip install -r requirements-dev.txt && ruff check . && pytest` — 5/5 pruebas pasan, incluida la validación de contrato de eventos contra `packages/event-contracts`. |
-| `packages/event-contracts` | ✅ Sí | `npm run validate` — los fixtures de ejemplo cumplen ambos esquemas. |
-| `infra/cdk` | ✅ Sí (parcial) | `cdk synth` genera CloudFormation válido para los 3 stacks (se encontró y corrigió un ciclo de dependencia real entre Secrets y Database). **No** se intentó `cdk deploy` — no hay credenciales de la AWS Organization del cliente. |
-| `apps/flutter_app` | ❌ No | Sin Flutter SDK instalado en esta máquina. El código se escribió siguiendo los patrones estándar de Flutter/Material 3, pero **no se compiló ni analizó**. Ver `apps/flutter_app/README.md` para los pasos exactos que el equipo debe correr antes del primer `flutter run`. |
+| `apps/api-gateway` (NestJS) | ✅ Sí | `npm run lint && npm run test && npm run build` en local y en CI. Además, arrancado contra Postgres y Redis reales: migración aplicada, login, desafío MFA (TOTP), RBAC y registro de auditoría probados por HTTP. |
+| `apps/quant-service` (Python) | ✅ Sí | `ruff check . && pytest` en local y en CI — incluida la validación de contrato de eventos contra `packages/event-contracts`. |
+| `packages/event-contracts` | ✅ Sí | `npm run validate` en local y en CI: los fixtures cumplen ambos esquemas, validados desde Node y desde Python. |
+| `apps/flutter_app` | ✅ Sí | `flutter analyze`, `flutter test` y `flutter build web` en local y en un runner limpio de Ubuntu en CI. Además, la app se abrió en Chrome y se completó un login real contra el api-gateway. |
+| `.github/workflows/ci.yml` | ✅ Sí | Ejecutado de verdad en GitHub Actions: los 4 jobs en verde. El primer run falló (`ruff: command not found`) y expuso un defecto real del pipeline que el entorno local enmascaraba. |
+| `infra/cdk` | ⚠️ Parcial | `cdk synth` genera CloudFormation válido para los 3 stacks (se encontró y corrigió un ciclo de dependencia real entre Secrets y Database). **No** se intentó `cdk deploy`: no hay credenciales de la AWS Organization del cliente (Open Item 5). |
 | `docker-compose.yml` (Postgres/Redis) | ❌ No | Este Docker está en modo Windows containers; no puede correr imágenes Linux. El equipo debe validarlo en una máquina con Docker Desktop en modo Linux/WSL2 (la config habitual en laptops de desarrollo). |
 
-En dos de las tres pruebas automatizadas que sí se corrieron aparecieron errores reales (un
-`.parents[N]` mal calculado en Python, y el ciclo de dependencia de CDK) que quedaron corregidos
-gracias a esa verificación — es la razón por la que vale la pena que el equipo repita estos mismos
-comandos en su propia máquina antes de construir encima.
+Cada ronda de verificación destapó defectos reales que quedaron corregidos: un `.parents[N]` mal
+calculado en Python, un ciclo de dependencia en CDK, un conflicto `jti`/`jwtid` al firmar el JWT, un
+tipo de columna que TypeORM no podía inferir, y el paso de instalación incompleto del pipeline. Es
+la razón por la que conviene que el equipo repita estos mismos comandos antes de construir encima.
