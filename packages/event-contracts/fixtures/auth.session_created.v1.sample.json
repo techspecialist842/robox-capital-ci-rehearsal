@@ -1,0 +1,13 @@
+{
+  "eventId": "8f14e45f-ceea-4c00-9f5e-1a2b3c4d5e6f",
+  "eventType": "auth.session_created",
+  "eventVersion": 1,
+  "occurredAt": "2026-01-01T00:00:00.000Z",
+  "producer": "api-gateway",
+  "payload": {
+    "userId": "3d594650-3436-11e5-bf21-0800200c9a66",
+    "sessionId": "6ec0bd7f-11c0-43da-975e-2a8ad9ebae0b",
+    "mfaVerified": true,
+    "roles": ["admin"]
+  }
+}

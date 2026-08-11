@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://robox-capital.internal/events/platform.test_message.v1.json",
+  "title": "platform.test_message",
+  "description": "Evento de referencia usado para validar de extremo a extremo que el bus de eventos entrega mensajes entre api-gateway y quant-service (Fase 1, criterio de aceptacion 'La base de eventos/tareas procesa un mensaje de prueba de extremo a extremo').",
+  "type": "object",
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "producer", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "const": "platform.test_message" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "producer": { "type": "string", "enum": ["api-gateway", "quant-service"] },
+    "payload": {
+      "type": "object",
+      "required": ["message"],
+      "additionalProperties": false,
+      "properties": {
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

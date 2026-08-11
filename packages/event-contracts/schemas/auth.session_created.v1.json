@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://robox-capital.internal/events/auth.session_created.v1.json",
+  "title": "auth.session_created",
+  "description": "Emitido por api-gateway cuando un usuario completa el inicio de sesion (con MFA verificado). Alimenta el log de auditoria inmutable (Fase 1, criterio de aceptacion 'Eventos de auditoria generados para acciones de autenticacion').",
+  "type": "object",
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "producer", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "const": "auth.session_created" },
+    "eventVersion": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "producer": { "const": "api-gateway" },
+    "payload": {
+      "type": "object",
+      "required": ["userId", "sessionId", "mfaVerified", "roles"],
+      "additionalProperties": false,
+      "properties": {
+        "userId": { "type": "string", "format": "uuid" },
+        "sessionId": { "type": "string", "format": "uuid" },
+        "mfaVerified": { "type": "boolean" },
+        "roles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "eventId": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+  "eventType": "platform.test_message",
+  "eventVersion": 1,
+  "occurredAt": "2026-01-01T00:00:00.000Z",
+  "producer": "api-gateway",
+  "payload": {
+    "message": "hello-from-api-gateway"
+  }
+}

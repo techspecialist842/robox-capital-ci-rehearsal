@@ -1,0 +1,12 @@
+{
+  "name": "@robox/event-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Esquemas de eventos versionados compartidos entre api-gateway (NestJS) y quant-service (Python/FastAPI) — ADR-002.",
+  "scripts": {
+    "validate": "node scripts/validate.js"
+  },
+  "devDependencies": {
+    "ajv": "^8.12.0"
+  }
+}
