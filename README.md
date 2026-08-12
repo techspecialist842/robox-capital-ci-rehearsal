@@ -81,11 +81,27 @@ Windows y no puede levantar imágenes Linux.
 | `apps/quant-service` (Python) | ✅ Sí | `ruff check . && pytest` en local y en CI — incluida la validación de contrato de eventos contra `packages/event-contracts`. |
 | `packages/event-contracts` | ✅ Sí | `npm run validate` en local y en CI: los fixtures cumplen ambos esquemas, validados desde Node y desde Python. |
 | `apps/flutter_app` | ✅ Sí | `flutter analyze`, `flutter test` y `flutter build web` en local y en un runner limpio de Ubuntu en CI. Además, la app se abrió en Chrome y se completó un login real contra el api-gateway. |
-| `.github/workflows/ci.yml` | ✅ Sí | Ejecutado de verdad en GitHub Actions: los 4 jobs en verde. El primer run falló (`ruff: command not found`) y expuso un defecto real del pipeline que el entorno local enmascaraba. |
+| `.github/workflows/ci.yml` | ✅ Sí | Ejecutado de verdad en GitHub Actions. El primer run falló (`ruff: command not found`) y expuso un defecto real del pipeline que el entorno local enmascaraba. |
+| Escaneo de seguridad (Puerta 1) | ✅ Sí | `npm audit`, `pip-audit` y `bandit` en CI. La primera pasada encontró 25 vulnerabilidades (7 altas) en NestJS 10; se actualizó a NestJS 11 y quedaron **0**. |
+| Observabilidad — logs (ADR-009) | ✅ Sí | Logger JSON con `correlationId` propagado por `AsyncLocalStorage`, cubierto por pruebas. **Métricas y alertas siguen pendientes**: requieren CloudWatch. |
+| Gestión de secretos (ADR-008) | ⚠️ Parcial | Abstracción implementada y probada: `SECRETS_PROVIDER=env` **falla el arranque** fuera de local/test. El camino de AWS Secrets Manager está escrito pero **no probado contra AWS real**. |
+| Feature flags | ✅ Sí | Valor por defecto en código + anulación en Redis, con degradación segura si Redis cae. Cubierto por pruebas. |
+| Runbooks de entorno | ⚠️ Parcial | `docs/runbooks/entornos.md`. Los procedimientos de despliegue, rollback y recuperación esperan a que existan las cuentas AWS. |
 | `infra/cdk` | ⚠️ Parcial | `cdk synth` genera CloudFormation válido para los 3 stacks (se encontró y corrigió un ciclo de dependencia real entre Secrets y Database). **No** se intentó `cdk deploy`: no hay credenciales de la AWS Organization del cliente (Open Item 5). |
 | `docker-compose.yml` (Postgres/Redis) | ❌ No | Este Docker está en modo Windows containers; no puede correr imágenes Linux. El equipo debe validarlo en una máquina con Docker Desktop en modo Linux/WSL2 (la config habitual en laptops de desarrollo). |
 
 Cada ronda de verificación destapó defectos reales que quedaron corregidos: un `.parents[N]` mal
 calculado en Python, un ciclo de dependencia en CDK, un conflicto `jti`/`jwtid` al firmar el JWT, un
-tipo de columna que TypeORM no podía inferir, y el paso de instalación incompleto del pipeline. Es
-la razón por la que conviene que el equipo repita estos mismos comandos antes de construir encima.
+tipo de columna que TypeORM no podía inferir, el paso de instalación incompleto del pipeline, y 7
+vulnerabilidades altas heredadas de NestJS 10. Es la razón por la que conviene que el equipo repita
+estos mismos comandos antes de construir encima.
+
+## Autenticación: el MFA es obligatorio
+
+Unas credenciales correctas **no** producen una sesión por sí solas. Si el usuario no tiene segundo
+factor, `POST /auth/login` devuelve `requiresMfaEnrollment` y un token acotado de 10 minutos que
+solo habilita `/auth/mfa/enroll` y `/auth/mfa/activate` — nada más. `JwtAuthGuard` rechaza ese token
+en cualquier otro endpoint, de modo que el alta no se puede usar como puerta trasera.
+
+El comportamiento se controla con el flag `auth.require-mfa`, activado por defecto. Existe para
+poder desactivarlo durante un incidente de acceso, no para operar la plataforma sin segundo factor.

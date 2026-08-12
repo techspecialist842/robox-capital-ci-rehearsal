@@ -8,14 +8,18 @@ import { EventsModule } from "./events/events.module";
 import { AuditModule } from "./common/audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { AdminModule } from "./admin/admin.module";
+import { FeatureFlagsModule } from "./common/feature-flags/feature-flags.module";
+import { SecretsModule } from "./common/secrets/secrets.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    SecretsModule,
     DatabaseModule,
     RedisModule,
     EventsModule,
     AuditModule,
+    FeatureFlagsModule,
     AuthModule,
     AdminModule,
     HealthModule,

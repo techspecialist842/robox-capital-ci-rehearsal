@@ -25,6 +25,19 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client?.quit();
   }
 
+  /** Acceso generico por clave — lo usa el registro de feature flags. */
+  async get(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  async set(key: string, value: string): Promise<void> {
+    await this.client.set(key, value);
+  }
+
+  async del(key: string): Promise<void> {
+    await this.client.del(key);
+  }
+
   async setSession(sessionId: string, userId: string, ttlSeconds: number): Promise<void> {
     await this.client.set(`session:${sessionId}`, userId, "EX", ttlSeconds);
   }

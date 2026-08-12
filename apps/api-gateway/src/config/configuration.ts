@@ -1,6 +1,24 @@
 export default () => ({
   apiGatewayPort: parseInt(process.env.API_GATEWAY_PORT ?? "3000", 10),
 
+  // Identifica el origen de cada linea de log en un destino compartido (ADR-009).
+  serviceName: process.env.SERVICE_NAME ?? "api-gateway",
+  environment: process.env.ENVIRONMENT ?? "local",
+
+  logging: {
+    level: process.env.LOG_LEVEL ?? "log",
+  },
+
+  aws: {
+    region: process.env.AWS_REGION ?? "us-east-1",
+  },
+
+  secrets: {
+    // "env" solo se acepta en local/test; en dev, staging y produccion debe ser
+    // "aws" o el arranque falla (ADR-008).
+    provider: process.env.SECRETS_PROVIDER ?? "env",
+  },
+
   database: {
     host: process.env.POSTGRES_HOST ?? "localhost",
     port: parseInt(process.env.POSTGRES_PORT ?? "5432", 10),

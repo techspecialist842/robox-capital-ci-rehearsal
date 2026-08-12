@@ -22,4 +22,9 @@ export class MfaService {
   verifyToken(token: string, secret: string): boolean {
     return authenticator.check(token, secret);
   }
+
+  /** Codigo vigente para un secreto. Lo usan las pruebas y el alta asistida. */
+  generateToken(secret: string): string {
+    return authenticator.generate(secret);
+  }
 }

@@ -28,6 +28,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       roles: payload.roles,
       sessionId: payload.sid,
       tokenId: payload.jti,
+      // Los tokens emitidos antes de introducir el scope no lo traen; se tratan
+      // como sesion normal para no invalidarlos de golpe.
+      scope: payload.scope ?? "session",
     };
   }
 }

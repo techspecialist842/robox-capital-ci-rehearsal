@@ -60,6 +60,44 @@ jobs:
         working-directory: packages/event-contracts
         run: npm install && npm run validate
 
+  security-scan:
+    name: Escaneo de seguridad (Puerta 1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Dependencias de produccion: bloquean el pipeline. Son las que llegan al
+      # artefacto desplegado, asi que un hallazgo alto aqui es un hallazgo real.
+      - name: Dependencias de produccion (api-gateway)
+        working-directory: apps/api-gateway
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Dependencias de produccion (event-contracts)
+        working-directory: packages/event-contracts
+        run: npm audit --omit=dev --audit-level=high
+
+      # Cadena de herramientas de desarrollo: informativo. Un aviso en eslint o en
+      # el CLI no llega a produccion y no debe frenar la entrega, pero queda visible.
+      - name: Herramientas de desarrollo (informativo)
+        working-directory: apps/api-gateway
+        run: npm audit --audit-level=high || echo "::warning::hallazgos en dependencias de desarrollo — revisar, no bloquean"
+
+      - name: Dependencias de Python
+        working-directory: apps/quant-service
+        run: |
+          pip install pip-audit bandit
+          pip-audit -r requirements.txt
+
+      - name: SAST de Python (bandit)
+        working-directory: apps/quant-service
+        run: bandit -r app -ll
+
   flutter-app:
     name: Flutter App
     runs-on: ubuntu-latest
