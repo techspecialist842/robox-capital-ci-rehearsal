@@ -11,6 +11,9 @@ export default () => ({
 
   aws: {
     region: process.env.AWS_REGION ?? "us-east-1",
+    // Solo se define contra LocalStack en las pruebas de integracion; en AWS real
+    // se deja vacio para que el SDK resuelva el endpoint por si mismo.
+    endpoint: process.env.AWS_ENDPOINT_URL,
   },
 
   secrets: {
@@ -39,9 +42,12 @@ export default () => ({
   },
 
   eventBus: {
-    // "memory" en desarrollo local; el adaptador SNS/SQS (ADR-002) se activa en AWS
-    // una vez resuelta la infraestructura de la Fase 1/2 (infra/cdk).
+    // "memory" solo para desarrollo local en un unico proceso; "sns-sqs" es el
+    // adaptador real (ADR-002). La semantica que deben cumplir productores y
+    // consumidores esta en packages/event-contracts/SEMANTICA.md.
     driver: process.env.EVENT_BUS_DRIVER ?? "memory",
+    topicArn: process.env.EVENT_BUS_TOPIC_ARN,
+    queueUrl: process.env.EVENT_BUS_QUEUE_URL,
   },
 
   providers: {

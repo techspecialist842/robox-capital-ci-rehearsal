@@ -60,6 +60,74 @@ jobs:
         working-directory: packages/event-contracts
         run: npm install && npm run validate
 
+  event-bus-integration:
+    name: Bus de eventos de extremo a extremo (SNS/SQS)
+    runs-on: ubuntu-latest
+    # El runner es Linux con Docker, que es lo que permite ejercitar el transporte
+    # real sin cuentas AWS. LocalStack emula SNS y SQS; no sustituye a una prueba
+    # contra AWS de verdad, pero convierte el adaptador en codigo ejecutado.
+    services:
+      localstack:
+        image: localstack/localstack:3
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: sns,sqs
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      AWS_ENDPOINT_URL: http://localhost:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Crear topico, cola y suscripcion
+        id: aws-setup
+        run: |
+          set -euo pipefail
+          TOPIC_ARN=$(aws --endpoint-url=$AWS_ENDPOINT_URL sns create-topic \
+            --name robox-ci-domain-events --query TopicArn --output text)
+          QUEUE_URL=$(aws --endpoint-url=$AWS_ENDPOINT_URL sqs create-queue \
+            --queue-name robox-ci-quant-service --query QueueUrl --output text)
+          QUEUE_ARN=$(aws --endpoint-url=$AWS_ENDPOINT_URL sqs get-queue-attributes \
+            --queue-url "$QUEUE_URL" --attribute-names QueueArn \
+            --query 'Attributes.QueueArn' --output text)
+          aws --endpoint-url=$AWS_ENDPOINT_URL sns subscribe \
+            --topic-arn "$TOPIC_ARN" --protocol sqs --notification-endpoint "$QUEUE_ARN" \
+            --attributes RawMessageDelivery=true
+          echo "topic_arn=$TOPIC_ARN" >> "$GITHUB_OUTPUT"
+          echo "queue_url=$QUEUE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Compilar el api-gateway
+        working-directory: apps/api-gateway
+        run: npm install && npm run build
+
+      - name: Publicar el evento de prueba (NestJS -> SNS)
+        id: publish
+        working-directory: apps/api-gateway
+        env:
+          EVENT_BUS_TOPIC_ARN: ${{ steps.aws-setup.outputs.topic_arn }}
+        run: echo "event_id=$(node scripts/publish-test-event.js)" >> "$GITHUB_OUTPUT"
+
+      - name: Consumir y validar (SQS -> Python)
+        working-directory: apps/quant-service
+        env:
+          EVENT_BUS_QUEUE_URL: ${{ steps.aws-setup.outputs.queue_url }}
+        run: |
+          pip install -r requirements.txt
+          python scripts/consume_test_event.py "${{ steps.publish.outputs.event_id }}"
+
   security-scan:
     name: Escaneo de seguridad (Puerta 1)
     runs-on: ubuntu-latest

@@ -4,6 +4,7 @@ import { App } from "aws-cdk-lib";
 import { NetworkStack } from "../lib/network-stack";
 import { SecretsStack } from "../lib/secrets-stack";
 import { DatabaseStack } from "../lib/database-stack";
+import { EventsStack } from "../lib/events-stack";
 
 /**
  * Punto de entrada de CDK. La cuenta/region se resuelven de las credenciales de
@@ -35,6 +36,12 @@ const secrets = new SecretsStack(app, `RoboX-${environmentName}-Secrets`, {
 new DatabaseStack(app, `RoboX-${environmentName}-Database`, {
   environmentName,
   vpc: network.vpc,
+  encryptionKey: secrets.encryptionKey,
+  env,
+});
+
+new EventsStack(app, `RoboX-${environmentName}-Events`, {
+  environmentName,
   encryptionKey: secrets.encryptionKey,
   env,
 });

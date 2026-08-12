@@ -38,6 +38,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.del(key);
   }
 
+  /**
+   * SET key value NX EX ttl — reserva la clave solo si no existia. Es atomico, lo
+   * que permite usarlo como cerrojo de idempotencia entre varias instancias.
+   * Devuelve true si la reserva la gano esta llamada.
+   */
+  async setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(key, value, "EX", ttlSeconds, "NX");
+    return result === "OK";
+  }
+
   async setSession(sessionId: string, userId: string, ttlSeconds: number): Promise<void> {
     await this.client.set(`session:${sessionId}`, userId, "EX", ttlSeconds);
   }
