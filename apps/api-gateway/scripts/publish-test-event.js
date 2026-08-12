@@ -26,8 +26,10 @@ async function main() {
     idempotencyStub,
   );
 
+  // El identificador lo fija quien invoca (el pipeline) para no tener que
+  // capturarlo de stdout: ahi tambien escribe el logger de la aplicacion.
   const event = {
-    eventId: randomUUID(),
+    eventId: process.env.EVENT_ID || randomUUID(),
     eventType: "platform.test_message",
     eventVersion: 1,
     occurredAt: new Date().toISOString(),
@@ -38,8 +40,6 @@ async function main() {
   await bus.publish(event);
   await bus.publish(event); // reentrega deliberada
 
-  // El script de Python lo lee para saber que eventId debe esperar.
-  process.stdout.write(`${event.eventId}\n`);
   await bus.onModuleDestroy();
 }
 
