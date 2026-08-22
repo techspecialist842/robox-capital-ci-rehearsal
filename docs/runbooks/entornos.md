@@ -177,8 +177,6 @@ Estos procedimientos no se pueden redactar con precision hasta que existan las
 cuentas (Open Item 5), porque dependen de los recursos concretos que se creen:
 
 - Despliegue y rollback en dev/staging.
-- Restauracion desde copia de seguridad y verificacion de RPO/RTO contra los
-  objetivos aprobados en [objetivos-no-funcionales.md](../objetivos-no-funcionales.md).
-- Respuesta a alertas. Los umbrales ya estan fijados (Open Item 4 cerrado el
-  14/08/2026); falta CloudWatch para medirlos.
+- Restauracion desde copia de seguridad y verificacion de RPO/RTO.
+- Respuesta a alertas (umbrales pendientes del Open Item 4).
 - Rotacion programada en Secrets Manager.

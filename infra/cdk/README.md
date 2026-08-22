@@ -34,11 +34,27 @@ npm run build
 npx cdk synth --context environment=dev --app "node dist/bin/app.js"
 
 # Ver diferencias contra lo desplegado (requiere credenciales validas)
-npm run diff -- --context environment=dev
+npm run diff -- --context environment=dev -c account=<ID de la cuenta roboX>
 
-# Desplegar (requiere acceso a la AWS Organization del cliente — Open Item 5)
-npx cdk deploy --all --context environment=dev
+# Desplegar
+npx cdk deploy --all --context environment=dev -c account=<ID de la cuenta roboX>
 ```
+
+## La cuenta de destino es obligatoria y explícita
+
+`bin/app.ts` **no hereda la cuenta del perfil de AWS activo**. Hay que declararla con
+`-c account=<ID>` o con `ROBOX_AWS_ACCOUNT_ID`, y la región tampoco se toma de
+`CDK_DEFAULT_REGION`.
+
+No es celo excesivo: las máquinas del equipo también tienen credenciales de REMATA, otro
+proyecto del mismo cliente que comparte la AWS Organization y tiene **producción en
+vivo**. Heredar la cuenta del perfil activo permitía desplegar roboX dentro de REMATA sin
+un solo aviso. La cuenta de REMATA (`793835018474`) está además rechazada de forma
+explícita en el código.
+
+Para validar las plantillas sin credenciales —lo que hace el pipeline de CI— se usa
+`-c account=agnostic`, que sintetiza sin cuenta ni región. Sirve para comprobar que el
+código de infraestructura es válido; **no sirve para desplegar**.
 
 Si `cdk synth`/`tsc` se quedan sin memoria en una máquina con poca RAM libre, correr con
 `NODE_OPTIONS="--max-old-space-size=768"` y usar el binario compilado

@@ -7,21 +7,60 @@ import { DatabaseStack } from "../lib/database-stack";
 import { EventsStack } from "../lib/events-stack";
 
 /**
- * Punto de entrada de CDK. La cuenta/region se resuelven de las credenciales de
- * AWS activas (CDK_DEFAULT_ACCOUNT/CDK_DEFAULT_REGION) — no se fijan aqui a
- * proposito, para que el mismo codigo sirva para dev/staging/prod segun el
- * perfil de AWS que use quien ejecuta el despliegue. Ver Kickoff de la Fase 1,
- * Seccion 3: el despliegue real depende de que el cliente otorgue acceso a la
- * AWS Organization (Open Item 5).
+ * Punto de entrada de CDK.
+ *
+ * La cuenta de destino se declara de forma EXPLICITA, no se hereda de las
+ * credenciales activas. El motivo es concreto: las maquinas del equipo tambien
+ * tienen credenciales de otros proyectos del mismo cliente, y resolver la cuenta
+ * desde el perfil activo permite desplegar roboX dentro de la cuenta equivocada
+ * sin ningun aviso. Declararla obliga a CDK a rechazar el despliegue si las
+ * credenciales no corresponden.
  */
 const app = new App();
 
 const environmentName = app.node.tryGetContext("environment") ?? "dev";
 
-const env = {
-  account: process.env.CDK_DEFAULT_ACCOUNT,
-  region: process.env.CDK_DEFAULT_REGION,
+/** Cuentas que NUNCA deben recibir infraestructura de roboX. */
+const FORBIDDEN_ACCOUNTS: Record<string, string> = {
+  "793835018474": "REMATA (cuenta de gestion de la Organization, con produccion en vivo)",
 };
+
+const targetAccount =
+  app.node.tryGetContext("account") ?? process.env.ROBOX_AWS_ACCOUNT_ID;
+
+if (!targetAccount) {
+  throw new Error(
+    "Falta la cuenta de destino. Indicala de forma explicita:\n" +
+      "  cdk deploy -c environment=dev -c account=<ID de la cuenta roboX>\n" +
+      "o exporta ROBOX_AWS_ACCOUNT_ID. Para validar plantillas sin credenciales\n" +
+      "(por ejemplo en CI): cdk synth -c account=agnostic.\n" +
+      "No se hereda del perfil de AWS activo a proposito: ver la cabecera.",
+  );
+}
+
+if (FORBIDDEN_ACCOUNTS[targetAccount]) {
+  throw new Error(
+    `La cuenta ${targetAccount} corresponde a ${FORBIDDEN_ACCOUNTS[targetAccount]}. ` +
+      "La infraestructura de roboX Capital no puede desplegarse ahi (ADR-004).",
+  );
+}
+
+/**
+ * "agnostic" genera plantillas sin cuenta ni region para validarlas en CI, donde
+ * no hay credenciales. No sirve para desplegar: CDK rechaza un despliegue real
+ * de una pila agnostica que necesite buscar recursos existentes.
+ *
+ * La region tampoco se hereda de CDK_DEFAULT_REGION: en una maquina con el perfil
+ * de otro proyecto activo, esa variable trae la region de ese proyecto.
+ */
+const env =
+  targetAccount === "agnostic"
+    ? undefined
+    : {
+        account: targetAccount,
+        region:
+          app.node.tryGetContext("region") ?? process.env.ROBOX_AWS_REGION ?? "us-east-1",
+      };
 
 const network = new NetworkStack(app, `RoboX-${environmentName}-Network`, {
   environmentName,

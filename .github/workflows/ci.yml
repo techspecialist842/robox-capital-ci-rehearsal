@@ -60,6 +60,23 @@ jobs:
         working-directory: packages/event-contracts
         run: npm install && npm run validate
 
+  infra-synth:
+    name: Infraestructura (CDK)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/cdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install
+      # "agnostic" genera las plantillas sin cuenta ni region, que es lo unico
+      # posible sin credenciales. Valida que el codigo de infraestructura compila
+      # y sintetiza; no sustituye a un despliegue real.
+      - run: npx cdk synth --quiet -c account=agnostic
+
   event-bus-integration:
     name: Bus de eventos de extremo a extremo (SNS/SQS)
     runs-on: ubuntu-latest
