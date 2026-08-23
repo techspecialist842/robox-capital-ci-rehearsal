@@ -60,6 +60,60 @@ jobs:
         working-directory: packages/event-contracts
         run: npm install && npm run validate
 
+  api-gateway-e2e:
+    name: API Gateway — pruebas de integracion
+    runs-on: ubuntu-latest
+    # Verifica lo que las pruebas unitarias no pueden: que las guardas esten
+    # conectadas a las rutas, que el token firmado se valide de vuelta y que la
+    # revocacion via Redis surta efecto. Requiere Postgres y Redis de verdad.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: robox
+          POSTGRES_USER: robox
+          POSTGRES_PASSWORD: robox_dev_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/api-gateway
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: robox
+      POSTGRES_USER: robox
+      POSTGRES_PASSWORD: robox_dev_only
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: solo-para-ci-no-usar-en-ningun-entorno
+      ENVIRONMENT: test
+      EVENT_BUS_DRIVER: memory
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/api-gateway/package-lock.json
+      - run: npm install
+      - run: npm run migration:run
+      - run: npm run test:e2e
+
   infra-synth:
     name: Infraestructura (CDK)
     runs-on: ubuntu-latest

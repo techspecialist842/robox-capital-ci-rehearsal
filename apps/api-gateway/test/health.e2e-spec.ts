@@ -2,11 +2,11 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication } from "@nestjs/common";
 import * as request from "supertest";
 import { AppModule } from "../src/app.module";
+import { configureApp } from "../src/bootstrap";
 
 /**
- * Requiere PostgreSQL y Redis arriba (docker compose up -d) — no se ejecuta en el
- * job "api-gateway" de CI (que solo corre pruebas unitarias); se agrega como job
- * separado con servicios de PostgreSQL/Redis una vez estabilizada la Fase 1.
+ * Requiere PostgreSQL y Redis arriba. Se ejecuta en el job "api-gateway-e2e" del
+ * pipeline, que los levanta como contenedores de servicio.
  */
 describe("HealthController (e2e)", () => {
   let app: INestApplication;
@@ -17,6 +17,7 @@ describe("HealthController (e2e)", () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    configureApp(app);
     await app.init();
   });
 
