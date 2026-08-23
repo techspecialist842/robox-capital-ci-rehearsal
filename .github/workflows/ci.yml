@@ -29,6 +29,16 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      # El contenedor arranca con "node dist/main.js". Anadir ficheros .ts fuera de
+      # src/ hace que TypeScript suba la raiz de compilacion y la salida pase a
+      # dist/src/main.js, rompiendo el arranque sin que falle el build. Ya ocurrio.
+      - name: Verificar la ruta de salida del build
+        run: |
+          if [ ! -f dist/main.js ]; then
+            echo "dist/main.js no existe. La raiz de compilacion cambio y el contenedor no arrancaria."
+            ls -R dist | head -20
+            exit 1
+          fi
       # Prueba de contrato de API: falla si el codigo produce un contrato distinto
       # al openapi.json versionado, para que ningun cambio de la API se cuele sin
       # quedar visible en la revision.

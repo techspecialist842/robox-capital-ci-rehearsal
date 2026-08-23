@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  // "scripts" se excluye a proposito: son herramientas de desarrollo que se
+  // ejecutan con ts-node. Si se compilan, TypeScript sube la raiz al directorio
+  // del paquete y la salida pasa de dist/main.js a dist/src/main.js, lo que rompe
+  // el arranque del contenedor (CMD ["node", "dist/main.js"]).
+  "exclude": ["node_modules", "test", "dist", "scripts", "**/*spec.ts"]
 }
