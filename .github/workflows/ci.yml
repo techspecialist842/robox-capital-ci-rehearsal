@@ -29,6 +29,10 @@ jobs:
       - run: npm run lint
       - run: npm run test
       - run: npm run build
+      # Prueba de contrato de API: falla si el codigo produce un contrato distinto
+      # al openapi.json versionado, para que ningun cambio de la API se cuele sin
+      # quedar visible en la revision.
+      - run: npm run openapi:check
 
   quant-service:
     name: Quant Service (Python/FastAPI)

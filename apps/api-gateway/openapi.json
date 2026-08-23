@@ -1,0 +1,339 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "description": "Con el MFA obligatorio activo, unas credenciales correctas NO devuelven una sesion: devuelven un desafio de segundo factor o un token de alta.",
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales invalidas"
+          }
+        },
+        "summary": "Valida credenciales",
+        "tags": [
+          "Autenticacion"
+        ]
+      }
+    },
+    "/auth/mfa/verify": {
+      "post": {
+        "operationId": "AuthController_verifyMfa",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyMfaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Codigo MFA incorrecto"
+          }
+        },
+        "summary": "Valida el codigo TOTP y emite la sesion",
+        "tags": [
+          "Autenticacion"
+        ]
+      }
+    },
+    "/auth/mfa/enroll": {
+      "post": {
+        "description": "Requiere el enrollmentToken de /auth/login. El factor queda inactivo.",
+        "operationId": "AuthController_enrollMfa",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Se requiere un token de alta de MFA"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Alta de MFA, paso 1: genera el secreto",
+        "tags": [
+          "Autenticacion"
+        ]
+      }
+    },
+    "/auth/mfa/activate": {
+      "post": {
+        "operationId": "AuthController_activateMfa",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateMfaDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Codigo MFA incorrecto"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Alta de MFA, paso 2: activa el factor y emite la sesion",
+        "tags": [
+          "Autenticacion"
+        ]
+      }
+    },
+    "/auth/sessions/current": {
+      "delete": {
+        "description": "El token deja de aceptarse en la siguiente peticion.",
+        "operationId": "AuthController_revokeCurrentSession",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Sesion revocada"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Revoca la sesion actual",
+        "tags": [
+          "Autenticacion"
+        ]
+      }
+    },
+    "/admin/ping": {
+      "get": {
+        "operationId": "AdminController_ping",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Acceso concedido"
+          },
+          "401": {
+            "description": "Sin sesion valida"
+          },
+          "403": {
+            "description": "Rol insuficiente, o token de alta de MFA"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Endpoint de referencia protegido por RBAC (rol admin)",
+        "tags": [
+          "Administracion"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "roboX Capital — API Gateway",
+    "description": "Punto de entrada autenticado de la plataforma. El MFA es obligatorio: unas credenciales correctas no bastan para obtener una sesion.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "analista@robox.capital"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "description": "Nunca se registra en los logs."
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "requiresMfa": {
+            "type": "boolean",
+            "description": "true si hace falta un segundo factor. Con MFA obligatorio, un login correcto nunca devuelve accessToken directamente."
+          },
+          "requiresMfaEnrollment": {
+            "type": "boolean",
+            "description": "true si el usuario aun no ha configurado su segundo factor."
+          },
+          "challengeUserId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identificador a devolver en /auth/mfa/verify."
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Solo presente si el MFA obligatorio esta desactivado por feature flag."
+          },
+          "enrollmentToken": {
+            "type": "string",
+            "description": "Token acotado, valido 10 minutos, que solo habilita /auth/mfa/enroll y /auth/mfa/activate. No da acceso a ningun recurso de negocio."
+          }
+        },
+        "required": [
+          "requiresMfa"
+        ]
+      },
+      "VerifyMfaDto": {
+        "type": "object",
+        "properties": {
+          "challengeUserId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Valor devuelto por /auth/login cuando el usuario ya tiene MFA activo."
+          },
+          "otpCode": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 6,
+            "example": "123456"
+          }
+        },
+        "required": [
+          "challengeUserId",
+          "otpCode"
+        ]
+      },
+      "MfaEnrollmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "description": "Secreto TOTP en base32. Mostrar una sola vez."
+          },
+          "otpAuthUrl": {
+            "type": "string",
+            "example": "otpauth://totp/roboXCapital:analista@robox.capital?secret=...&issuer=roboXCapital",
+            "description": "URL para el codigo QR de la aplicacion de autenticacion."
+          }
+        },
+        "required": [
+          "secret",
+          "otpAuthUrl"
+        ]
+      },
+      "ActivateMfaDto": {
+        "type": "object",
+        "properties": {
+          "otpCode": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 6,
+            "example": "123456",
+            "description": "Codigo TOTP generado con el secreto entregado por /auth/mfa/enroll."
+          }
+        },
+        "required": [
+          "otpCode"
+        ]
+      },
+      "SessionResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "JWT de sesion. Enviar como Bearer en el resto de peticiones."
+          }
+        },
+        "required": [
+          "accessToken"
+        ]
+      }
+    }
+  }
+}

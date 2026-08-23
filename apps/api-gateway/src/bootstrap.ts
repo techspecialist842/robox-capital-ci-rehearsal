@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { correlationIdMiddleware } from "./common/logging/correlation-id.middleware";
 import { RequestLoggingInterceptor } from "./common/logging/request-logging.interceptor";
+import { setupSwaggerUi } from "./openapi";
 
 /**
  * Configuracion compartida de la aplicacion.
@@ -26,4 +27,11 @@ export function configureApp(app: INestApplication): void {
 
   app.useGlobalInterceptors(new RequestLoggingInterceptor());
   app.enableCors({ exposedHeaders: ["x-correlation-id"] });
+
+  // La documentacion interactiva describe cada endpoint y su forma de autenticacion.
+  // Se sirve en todos los entornos salvo produccion: alli es superficie de ataque
+  // gratuita, y el contrato ya viaja versionado en openapi.json.
+  if ((process.env.ENVIRONMENT ?? "local") !== "production") {
+    setupSwaggerUi(app);
+  }
 }
