@@ -7,13 +7,16 @@
 const fs = require("fs");
 const path = require("path");
 const Ajv = require("ajv");
+const addFormats = require("ajv-formats");
 
 const schemasDir = path.join(__dirname, "..", "schemas");
 const fixturesDir = path.join(__dirname, "..", "fixtures");
 
-const ajv = new Ajv({ allErrors: true, strict: false });
-ajv.addFormat("uuid", /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-ajv.addFormat("date-time", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/);
+// ajv-formats en lugar de expresiones regulares propias: cubre todos los formatos
+// estandar y, sobre todo, evita que la definicion de "uuid" o "date-time" aqui se
+// aparte de la que aplica el validador de Python. El objetivo del ADR-002 es que
+// ambos lados acepten y rechacen exactamente lo mismo.
+const ajv = addFormats(new Ajv({ allErrors: true, strict: false }));
 
 let failures = 0;
 

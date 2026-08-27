@@ -1,0 +1,11 @@
+{
+  "eventId": "50b4bcc2-5a9a-40cc-956f-b30f1217d083",
+  "eventType": "instrument.registered",
+  "eventVersion": 1,
+  "occurredAt": "2026-08-24T09:00:00.000Z",
+  "producer": "api-gateway",
+  "payload": {
+    "instrumentId": "b4e6f8a0-2c1d-4e3f-a5b7-9c8d1e2f3a4b",
+    "symbol": "XAUUSD"
+  }
+}

@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://robox-capital.internal/events/platform.test_message.v1.json",
-  "title": "platform.test_message",
-  "description": "Evento de referencia usado para validar de extremo a extremo que el bus de eventos entrega mensajes entre api-gateway y quant-service (Fase 1, criterio de aceptacion 'La base de eventos/tareas procesa un mensaje de prueba de extremo a extremo').",
+  "$id": "https://robox-capital.internal/events/instrument.deactivated.v1.json",
+  "title": "instrument.deactivated",
+  "description": "Un instrumento deja de estar disponible. No se borra: puede estar referenciado por versiones de estrategias.",
   "type": "object",
   "required": [
     "eventId",
@@ -20,7 +20,7 @@
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
     },
     "eventType": {
-      "const": "platform.test_message"
+      "const": "instrument.deactivated"
     },
     "eventVersion": {
       "const": 1
@@ -39,11 +39,17 @@
     "payload": {
       "type": "object",
       "required": [
-        "message"
+        "instrumentId",
+        "symbol"
       ],
       "additionalProperties": false,
       "properties": {
-        "message": {
+        "instrumentId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        },
+        "symbol": {
           "type": "string"
         }
       }

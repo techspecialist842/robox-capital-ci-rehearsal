@@ -1,8 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { UserEntity } from "./entities/user.entity";
-import { CreateUsers1700000000000 } from "./migrations/1700000000000-CreateUsers";
+import { ENTIDADES, MIGRACIONES } from "./schema";
 
 @Module({
   imports: [
@@ -16,15 +15,15 @@ import { CreateUsers1700000000000 } from "./migrations/1700000000000-CreateUsers
         database: config.get<string>("database.database"),
         username: config.get<string>("database.username"),
         password: config.get<string>("database.password"),
-        entities: [UserEntity],
-        migrations: [CreateUsers1700000000000],
+        entities: ENTIDADES,
+        migrations: MIGRACIONES,
         // Las migraciones se ejecutan explicitamente (npm run migration:run), nunca
         // synchronize:true fuera de pruebas locales rapidas.
         synchronize: false,
         autoLoadEntities: true,
       }),
     }),
-    TypeOrmModule.forFeature([UserEntity]),
+    TypeOrmModule.forFeature(ENTIDADES),
   ],
   exports: [TypeOrmModule],
 })

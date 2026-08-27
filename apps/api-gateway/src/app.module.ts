@@ -8,6 +8,8 @@ import { EventsModule } from "./events/events.module";
 import { AuditModule } from "./common/audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { AdminModule } from "./admin/admin.module";
+import { InstrumentModule } from "./instruments/instrument.module";
+import { StrategyModule } from "./strategies/strategy.module";
 import { FeatureFlagsModule } from "./common/feature-flags/feature-flags.module";
 import { SecretsModule } from "./common/secrets/secrets.module";
 
@@ -22,6 +24,8 @@ import { SecretsModule } from "./common/secrets/secrets.module";
     FeatureFlagsModule,
     AuthModule,
     AdminModule,
+    InstrumentModule,
+    StrategyModule,
     HealthModule,
   ],
 })

@@ -1,8 +1,7 @@
 import "reflect-metadata";
 import { config } from "dotenv";
 import { DataSource } from "typeorm";
-import { UserEntity } from "./entities/user.entity";
-import { CreateUsers1700000000000 } from "./migrations/1700000000000-CreateUsers";
+import { ENTIDADES, MIGRACIONES } from "./schema";
 
 config({ path: "../../.env" });
 
@@ -10,6 +9,9 @@ config({ path: "../../.env" });
  * DataSource plano (sin Nest DI) para el CLI de TypeORM — usado por
  * "npm run migration:run" (ver package.json). El runtime de la app usa
  * database.module.ts en su lugar.
+ *
+ * Ambos leen las entidades y migraciones de schema.ts, para que no puedan
+ * desincronizarse.
  */
 export default new DataSource({
   type: "postgres",
@@ -18,6 +20,6 @@ export default new DataSource({
   database: process.env.POSTGRES_DB ?? "robox",
   username: process.env.POSTGRES_USER ?? "robox",
   password: process.env.POSTGRES_PASSWORD ?? "robox_dev_only",
-  entities: [UserEntity],
-  migrations: [CreateUsers1700000000000],
+  entities: ENTIDADES,
+  migrations: MIGRACIONES,
 });

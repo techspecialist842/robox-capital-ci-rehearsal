@@ -1,0 +1,11 @@
+{
+  "eventId": "8520f2c2-8466-4c7b-8ae1-d62993a12dd0",
+  "eventType": "strategy.version_created",
+  "eventVersion": 1,
+  "occurredAt": "2026-08-24T09:00:00.000Z",
+  "producer": "api-gateway",
+  "payload": {
+    "strategyId": "7a2d9c4b-1e3f-4a6b-9c8d-5e7f1a3b2c4d",
+    "version": 2
+  }
+}

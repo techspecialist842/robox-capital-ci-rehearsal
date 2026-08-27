@@ -1,0 +1,12 @@
+{
+  "eventId": "95eb37ff-9d19-4f8d-bac3-8b25fd4f3640",
+  "eventType": "strategy.created",
+  "eventVersion": 1,
+  "occurredAt": "2026-08-24T09:00:00.000Z",
+  "producer": "api-gateway",
+  "payload": {
+    "strategyId": "7a2d9c4b-1e3f-4a6b-9c8d-5e7f1a3b2c4d",
+    "name": "Momento Oro/BTC",
+    "version": 1
+  }
+}

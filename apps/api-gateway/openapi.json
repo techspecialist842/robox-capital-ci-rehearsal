@@ -190,6 +190,303 @@
         ]
       }
     },
+    "/instruments": {
+      "get": {
+        "operationId": "InstrumentController_findAll",
+        "parameters": [
+          {
+            "name": "activos",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Lista los instrumentos registrados",
+        "tags": [
+          "Instrumentos"
+        ]
+      },
+      "post": {
+        "operationId": "InstrumentController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInstrumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "409": {
+            "description": "El instrumento ya esta registrado"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Registra un instrumento",
+        "tags": [
+          "Instrumentos"
+        ]
+      }
+    },
+    "/instruments/{symbol}": {
+      "get": {
+        "operationId": "InstrumentController_findOne",
+        "parameters": [
+          {
+            "name": "symbol",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Instrumento no encontrado"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Obtiene un instrumento por simbolo",
+        "tags": [
+          "Instrumentos"
+        ]
+      },
+      "delete": {
+        "description": "No lo borra: puede estar referenciado por versiones de estrategias y por operaciones ya registradas.",
+        "operationId": "InstrumentController_deactivate",
+        "parameters": [
+          {
+            "name": "symbol",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Desactiva un instrumento",
+        "tags": [
+          "Instrumentos"
+        ]
+      }
+    },
+    "/strategies": {
+      "get": {
+        "operationId": "StrategyController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Lista las estrategias",
+        "tags": [
+          "Estrategias"
+        ]
+      },
+      "post": {
+        "operationId": "StrategyController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStrategyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "409": {
+            "description": "Ya existe una estrategia con ese nombre"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Crea una estrategia y su version inicial",
+        "tags": [
+          "Estrategias"
+        ]
+      }
+    },
+    "/strategies/{id}": {
+      "get": {
+        "operationId": "StrategyController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Estrategia no encontrada"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Obtiene una estrategia",
+        "tags": [
+          "Estrategias"
+        ]
+      }
+    },
+    "/strategies/{id}/versions": {
+      "get": {
+        "operationId": "StrategyController_listVersions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Historial de versiones, de la mas reciente a la mas antigua",
+        "tags": [
+          "Estrategias"
+        ]
+      },
+      "post": {
+        "description": "Las versiones anteriores permanecen intactas: el historial es inmutable.",
+        "operationId": "StrategyController_createVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStrategyVersionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Crea una version nueva",
+        "tags": [
+          "Estrategias"
+        ]
+      }
+    },
+    "/strategies/{id}/status": {
+      "patch": {
+        "operationId": "StrategyController_changeStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeStrategyStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "409": {
+            "description": "Transicion de estado no permitida"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Activa, suspende o archiva una estrategia",
+        "tags": [
+          "Estrategias"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_check",
@@ -332,6 +629,130 @@
         },
         "required": [
           "accessToken"
+        ]
+      },
+      "CreateInstrumentDto": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "example": "XAUUSD"
+          },
+          "name": {
+            "type": "string",
+            "example": "Oro contra dolar"
+          },
+          "assetClass": {
+            "type": "string",
+            "enum": [
+              "metal",
+              "cripto",
+              "renta_variable",
+              "divisa"
+            ],
+            "example": "metal"
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "exchange": {
+            "type": "string",
+            "example": "COMEX"
+          },
+          "tickSize": {
+            "type": "string",
+            "example": "0.01",
+            "description": "Incremento minimo de precio, como cadena. No se usa un numero de coma flotante: 0.01 no es exactamente representable y el error se acumula."
+          }
+        },
+        "required": [
+          "symbol",
+          "name",
+          "assetClass",
+          "currency",
+          "tickSize"
+        ]
+      },
+      "CreateStrategyDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Momento Oro/BTC",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "ventana": 20,
+              "umbralEntrada": 1.5
+            },
+            "description": "Parametros de la version inicial. Se guardan tal cual y quedan inmutables: son la evidencia de con que configuracion se decidio cada operacion."
+          },
+          "instrumentIds": {
+            "example": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "parameters",
+          "instrumentIds"
+        ]
+      },
+      "CreateStrategyVersionDto": {
+        "type": "object",
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true,
+            "example": {
+              "ventana": 30,
+              "umbralEntrada": 1.2
+            }
+          },
+          "instrumentIds": {
+            "example": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "parameters",
+          "instrumentIds"
+        ]
+      },
+      "ChangeStrategyStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "suspended",
+              "archived"
+            ],
+            "description": "Transiciones permitidas: draft->active|archived, active->suspended|archived, suspended->active|archived. 'archived' es definitivo y no tiene salida."
+          }
+        },
+        "required": [
+          "status"
         ]
       }
     }

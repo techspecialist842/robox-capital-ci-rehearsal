@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://robox-capital.internal/events/platform.test_message.v1.json",
-  "title": "platform.test_message",
-  "description": "Evento de referencia usado para validar de extremo a extremo que el bus de eventos entrega mensajes entre api-gateway y quant-service (Fase 1, criterio de aceptacion 'La base de eventos/tareas procesa un mensaje de prueba de extremo a extremo').",
+  "$id": "https://robox-capital.internal/events/strategy.status_changed.v1.json",
+  "title": "strategy.status_changed",
+  "description": "Cambio en el ciclo de vida de una estrategia. Suspender o archivar detiene decisiones con dinero de por medio.",
   "type": "object",
   "required": [
     "eventId",
@@ -20,7 +20,7 @@
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
     },
     "eventType": {
-      "const": "platform.test_message"
+      "const": "strategy.status_changed"
     },
     "eventVersion": {
       "const": 1
@@ -39,12 +39,24 @@
     "payload": {
       "type": "object",
       "required": [
-        "message"
+        "strategyId",
+        "status"
       ],
       "additionalProperties": false,
       "properties": {
-        "message": {
-          "type": "string"
+        "strategyId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "active",
+            "suspended",
+            "archived"
+          ]
         }
       }
     }

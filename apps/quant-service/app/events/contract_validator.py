@@ -23,7 +23,10 @@ def _load_validator(event_type: str, event_version: int) -> Draft7Validator:
     if not schema_path.exists():
         raise UnknownEventTypeError(f"Sin esquema para {event_type} v{event_version}")
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    return Draft7Validator(schema)
+    # Sin format_checker, jsonschema IGNORA los "format" del esquema: un eventId que
+    # no fuese un UUID pasaria aqui y seria rechazado por el lado de Node, que si
+    # los comprueba. Esa asimetria es justo lo que el ADR-002 quiere impedir.
+    return Draft7Validator(schema, format_checker=Draft7Validator.FORMAT_CHECKER)
 
 
 def validate_event(event: dict) -> None:

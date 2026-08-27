@@ -210,6 +210,24 @@ describe("Autenticacion, MFA y RBAC (e2e)", () => {
       expect(tipos).toContain("auth.mfa_activated");
       expect(tipos).toContain("auth.session_created");
     });
+
+    it("el registro de auditoria es inmutable de verdad", async () => {
+      const { id, email } = await crearUsuario(["admin"]);
+      await altaCompletaDeMfa(email);
+
+      // REVOKE ... FROM PUBLIC no bastaba: el propietario de la tabla conserva
+      // sus privilegios. La inmutabilidad la impone un disparador.
+      await expect(
+        dataSource.query(
+          `UPDATE audit_events SET payload = '{"manipulado": true}' WHERE actor_user_id = $1`,
+          [id],
+        ),
+      ).rejects.toThrow(/solo insercion/);
+
+      await expect(
+        dataSource.query(`DELETE FROM audit_events WHERE actor_user_id = $1`, [id]),
+      ).rejects.toThrow(/solo insercion/);
+    });
   });
 
   describe("correlacion", () => {

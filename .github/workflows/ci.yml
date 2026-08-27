@@ -72,7 +72,13 @@ jobs:
           node-version: "20"
       - name: Validar esquemas de eventos
         working-directory: packages/event-contracts
-        run: npm install && npm run validate
+        run: |
+          npm install
+          npm run validate
+          # Falla si el codigo publica un evento sin esquema versionado: paso dos
+          # veces sin que ninguna prueba lo detectara, porque los fixtures solo
+          # cubren los eventos que ya tienen esquema.
+          node scripts/check-coverage.js
 
   api-gateway-e2e:
     name: API Gateway — pruebas de integracion
