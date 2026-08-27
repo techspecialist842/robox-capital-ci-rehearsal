@@ -1,47 +1,72 @@
 import 'package:flutter/material.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../strategies/strategies_screen.dart';
+import '../strategies/strategy_repository.dart';
 
-/// Shell posterior a la autenticacion. En la Fase 1 solo confirma que el login
-/// funciono de extremo a extremo; los dashboards reales (estrategias, riesgo,
-/// paper trading, portafolio, reportes) se construyen en las Fases 2-5.
-class HomeShell extends StatelessWidget {
+/// Shell posterior a la autenticación. Desde la Fase 2 aloja el dashboard
+/// ejecutivo y la administración de estrategias. Riesgo, paper trading y
+/// reportes se incorporan en las Fases 3-5.
+class HomeShell extends StatefulWidget {
   final VoidCallback onLogout;
+  final String accessToken;
+  final StrategyRepository? repository;
 
-  const HomeShell({super.key, required this.onLogout});
+  const HomeShell({
+    super.key,
+    required this.onLogout,
+    required this.accessToken,
+    this.repository,
+  });
+
+  @override
+  State<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends State<HomeShell> {
+  late final StrategyRepository _repository;
+  int _indice = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _repository =
+        widget.repository ?? StrategyRepository(accessToken: widget.accessToken);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final pantallas = [
+      DashboardScreen(repository: _repository),
+      StrategiesScreen(repository: _repository),
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('roboX Capital'),
+        title: Text(_indice == 0 ? 'Panel ejecutivo' : 'Estrategias'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
-            onPressed: onLogout,
+            onPressed: widget.onLogout,
           ),
         ],
       ),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle_outline, size: 48),
-              SizedBox(height: 12),
-              Text(
-                'Sesión autenticada contra el API Gateway.',
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Dashboards de estrategias, riesgo, paper trading y reportes '
-                'llegan en las Fases 2-5.',
-                textAlign: TextAlign.center,
-              ),
-            ],
+      body: pantallas[_indice],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _indice,
+        onDestinationSelected: (i) => setState(() => _indice = i),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Panel',
           ),
-        ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Estrategias',
+          ),
+        ],
       ),
     );
   }

@@ -52,6 +52,6 @@ class _AppRootState extends State<AppRoot> {
         onAuthenticated: _handleAuthenticated,
       );
     }
-    return HomeShell(onLogout: _handleLogout);
+    return HomeShell(accessToken: _accessToken!, onLogout: _handleLogout);
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'auth_repository.dart';
+import 'mfa_enrollment_screen.dart';
 import 'mfa_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -47,7 +48,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      if (result.requiresMfa && result.challengeUserId != null) {
+      // El orden importa: el alta se comprueba ANTES que el desafio. Un usuario
+      // sin segundo factor recibe requiresMfa=true y challengeUserId, pero
+      // enviarlo a introducir un codigo que todavia no puede generar lo dejaria
+      // bloqueado sin salida.
+      if (result.requiresMfaEnrollment && result.enrollmentToken != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MfaEnrollmentScreen(
+              authRepository: widget.authRepository,
+              enrollmentToken: result.enrollmentToken!,
+              onAuthenticated: widget.onAuthenticated,
+            ),
+          ),
+        );
+      } else if (result.requiresMfa && result.challengeUserId != null) {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => MfaScreen(
