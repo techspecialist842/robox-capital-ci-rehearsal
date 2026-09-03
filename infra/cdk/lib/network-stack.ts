@@ -1,5 +1,5 @@
 import { Stack, StackProps, Tags } from "aws-cdk-lib";
-import { Vpc, SubnetType } from "aws-cdk-lib/aws-ec2";
+import { Port, SecurityGroup, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 
 export interface NetworkStackProps extends StackProps {
@@ -13,6 +13,20 @@ export interface NetworkStackProps extends StackProps {
  */
 export class NetworkStack extends Stack {
   public readonly vpc: Vpc;
+
+  /**
+   * Grupo de seguridad de los servicios de aplicacion.
+   *
+   * Se declara aqui, y no en la pila de computo, para romper un ciclo entre
+   * pilas: las reglas de entrada las anade la pila que posee el grupo destino
+   * (base de datos), asi que si este grupo naciera en computo, Database tendria
+   * que referenciar a Compute y Compute a Database a la vez. Ya ocurrio un ciclo
+   * asi entre Secrets y Database.
+   */
+  public readonly appSecurityGroup: SecurityGroup;
+
+  /** Grupo del balanceador. Vive aqui por el mismo motivo que el anterior. */
+  public readonly albSecurityGroup: SecurityGroup;
 
   constructor(scope: Construct, id: string, props: NetworkStackProps) {
     super(scope, id, props);
@@ -39,6 +53,35 @@ export class NetworkStack extends Stack {
         },
       ],
     });
+
+    this.appSecurityGroup = new SecurityGroup(this, "AppSecurityGroup", {
+      vpc: this.vpc,
+      securityGroupName: `robox-${props.environmentName}-app`,
+      description: "Servicios de aplicacion (api-gateway, quant-service)",
+      allowAllOutbound: true,
+    });
+
+    this.albSecurityGroup = new SecurityGroup(this, "AlbSecurityGroup", {
+      vpc: this.vpc,
+      securityGroupName: `robox-${props.environmentName}-alb`,
+      description: "Balanceador publico; unico expuesto a internet",
+      allowAllOutbound: true,
+    });
+
+    // El api-gateway solo acepta trafico del balanceador, nunca directo.
+    this.appSecurityGroup.addIngressRule(
+      this.albSecurityGroup,
+      Port.tcp(3000),
+      "api-gateway desde el balanceador",
+    );
+
+    // Ambos servicios comparten grupo, asi que hablarse entre ellos requiere una
+    // regla explicita: pertenecer al mismo grupo no habilita el trafico por si solo.
+    this.appSecurityGroup.addIngressRule(
+      this.appSecurityGroup,
+      Port.tcp(8000),
+      "quant-service desde el api-gateway",
+    );
 
     Tags.of(this).add("robox:environment", props.environmentName);
     Tags.of(this).add("robox:managed-by", "cdk");

@@ -5,6 +5,8 @@ import { NetworkStack } from "../lib/network-stack";
 import { SecretsStack } from "../lib/secrets-stack";
 import { DatabaseStack } from "../lib/database-stack";
 import { EventsStack } from "../lib/events-stack";
+import { ComputeStack } from "../lib/compute-stack";
+import { ObservabilityStack } from "../lib/observability-stack";
 
 /**
  * Punto de entrada de CDK.
@@ -72,15 +74,42 @@ const secrets = new SecretsStack(app, `RoboX-${environmentName}-Secrets`, {
   env,
 });
 
-new DatabaseStack(app, `RoboX-${environmentName}-Database`, {
+const database = new DatabaseStack(app, `RoboX-${environmentName}-Database`, {
   environmentName,
   vpc: network.vpc,
+  encryptionKey: secrets.encryptionKey,
+  appSecurityGroup: network.appSecurityGroup,
+  env,
+});
+
+const events = new EventsStack(app, `RoboX-${environmentName}-Events`, {
+  environmentName,
   encryptionKey: secrets.encryptionKey,
   env,
 });
 
-new EventsStack(app, `RoboX-${environmentName}-Events`, {
+const compute = new ComputeStack(app, `RoboX-${environmentName}-Compute`, {
   environmentName,
-  encryptionKey: secrets.encryptionKey,
+  vpc: network.vpc,
+  appSecurityGroup: network.appSecurityGroup,
+  albSecurityGroup: network.albSecurityGroup,
+  encryptionKeyArn: secrets.encryptionKey.keyArn,
+  databaseSecretArn: database.databaseSecret.secretArn,
+  databaseEndpoint: database.databaseEndpoint,
+  databasePort: database.databasePort,
+  redisEndpoint: database.redisEndpoint,
+  redisPort: database.redisPort,
+  eventsTopic: events.topic,
+  quantServiceQueue: events.quantServiceQueue,
+  aiProviderApiKeyArn: secrets.aiProviderApiKey.secretArn,
+  env,
+});
+
+new ObservabilityStack(app, `RoboX-${environmentName}-Observability`, {
+  environmentName,
+  encryptionKeyArn: secrets.encryptionKey.keyArn,
+  loadBalancerFullName: compute.loadBalancerFullName,
+  targetGroupFullName: compute.targetGroupFullName,
+  deadLetterQueue: events.deadLetterQueue,
   env,
 });

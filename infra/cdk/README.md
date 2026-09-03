@@ -40,6 +40,28 @@ npm run diff -- --context environment=dev -c account=<ID de la cuenta roboX>
 npx cdk deploy --all --context environment=dev -c account=<ID de la cuenta roboX>
 ```
 
+## Pilas
+
+| Pila | Contiene |
+|---|---|
+| `Network` | VPC, subredes pública / aplicación / datos, y los grupos de seguridad de aplicación y balanceador |
+| `Secrets` | Clave KMS y secreto del proveedor de IA |
+| `Database` | PostgreSQL y Redis en subredes aisladas, con acceso solo desde la aplicación |
+| `Events` | Tópico SNS, cola SQS y cola de fallidos |
+| `Compute` | Registros ECR, clúster ECS, servicios Fargate y balanceador |
+| `Observability` | Alarmas contra los objetivos aprobados y tópico de notificación |
+
+**Los grupos de seguridad de aplicación y balanceador viven en `Network`, no en
+`Compute`.** No es una cuestión de gusto: las reglas de entrada las añade CDK a la
+pila que posee el grupo destino, así que declararlos en `Compute` genera ciclos
+entre pilas. Lo mismo ocurre con la clave KMS y los secretos, que `Compute`
+importa por ARN en lugar de recibir como objetos — pasar el objeto hace que CDK
+modifique la política del recurso original y vuelve a crear el ciclo.
+
+Este proyecto ya se topó con ese ciclo tres veces (Secrets↔Database,
+Network↔Compute y Secrets↔Compute). Si aparece uno nuevo, la causa suele ser la
+misma: un permiso que se concede sobre el recurso en vez de sobre el rol.
+
 ## La cuenta de destino es obligatoria y explícita
 
 `bin/app.ts` **no hereda la cuenta del perfil de AWS activo**. Hay que declararla con
