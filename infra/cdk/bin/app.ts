@@ -7,6 +7,7 @@ import { DatabaseStack } from "../lib/database-stack";
 import { EventsStack } from "../lib/events-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { ObservabilityStack } from "../lib/observability-stack";
+import { CicdStack } from "../lib/cicd-stack";
 
 /**
  * Punto de entrada de CDK.
@@ -102,6 +103,17 @@ const compute = new ComputeStack(app, `RoboX-${environmentName}-Compute`, {
   eventsTopic: events.topic,
   quantServiceQueue: events.quantServiceQueue,
   aiProviderApiKeyArn: secrets.aiProviderApiKey.secretArn,
+  env,
+});
+
+// El repositorio se pasa por contexto: hoy apunta al de ensayo, y cambia al del
+// cliente cuando exista, sin tocar el codigo.
+new CicdStack(app, `RoboX-${environmentName}-Cicd`, {
+  environmentName,
+  githubRepository:
+    app.node.tryGetContext("githubRepository") ??
+    "techspecialist842/robox-capital-ci-rehearsal",
+  githubBranch: app.node.tryGetContext("githubBranch") ?? "main",
   env,
 });
 

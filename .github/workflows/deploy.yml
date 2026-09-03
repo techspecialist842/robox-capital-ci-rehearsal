@@ -1,0 +1,105 @@
+name: Despliegue
+
+# Separado de ci.yml a proposito: la validacion debe correr en cada cambio y en
+# cada propuesta de cambio, pero desplegar no.
+#
+# El orden importa y no es casual: se publican las imagenes, LUEGO se aplican las
+# migraciones como tarea aislada, y solo si esa tarea termina bien se mueve el
+# trafico. Si una migracion falla, el despliegue se detiene y la version en
+# funcionamiento no se ve afectada.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: Entorno de destino
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging]
+
+permissions:
+  # Necesario para que GitHub emita el token OIDC que AWS intercambia por
+  # credenciales temporales. Sin claves permanentes guardadas en el repositorio.
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-2
+  ENTORNO: ${{ inputs.entorno || 'dev' }}
+
+jobs:
+  desplegar:
+    name: Desplegar a ${{ inputs.entorno || 'dev' }}
+    runs-on: ubuntu-latest
+    # Un despliegue a staging exige aprobacion; dev es automatico. Se configura
+    # en Settings > Environments del repositorio.
+    environment: ${{ inputs.entorno || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Autenticar en AWS mediante OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/robox-${{ inputs.entorno || 'dev' }}-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Iniciar sesion en ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # La etiqueta es el SHA del commit, nunca "latest": los repositorios usan
+      # etiquetas inmutables, asi que cada version desplegada es rastreable hasta
+      # el codigo exacto que la produjo.
+      - name: Publicar imagen del api-gateway
+        working-directory: apps/api-gateway
+        run: |
+          IMAGEN="${{ steps.ecr.outputs.registry }}/robox-${ENTORNO}-apigateway:${GITHUB_SHA}"
+          docker build -t "$IMAGEN" .
+          docker push "$IMAGEN"
+          echo "IMAGEN_API=$IMAGEN" >> "$GITHUB_ENV"
+
+      - name: Publicar imagen del quant-service
+        working-directory: apps/quant-service
+        run: |
+          IMAGEN="${{ steps.ecr.outputs.registry }}/robox-${ENTORNO}-quantservice:${GITHUB_SHA}"
+          docker build -t "$IMAGEN" .
+          docker push "$IMAGEN"
+          echo "IMAGEN_QUANT=$IMAGEN" >> "$GITHUB_ENV"
+
+      # Antes de mover trafico. Usa la imagen recien publicada, de modo que el
+      # esquema y el codigo que lo espera provienen del mismo commit.
+      - name: Aplicar migraciones como tarea aislada
+        run: |
+          set -euo pipefail
+          bash .github/scripts/run-migrations.sh "$ENTORNO" "$AWS_REGION" "$IMAGEN_API"
+
+      - name: Desplegar api-gateway
+        run: |
+          bash .github/scripts/deploy-service.sh \
+            "$ENTORNO" "$AWS_REGION" apigateway "$IMAGEN_API"
+
+      - name: Desplegar quant-service
+        run: |
+          bash .github/scripts/deploy-service.sh \
+            "$ENTORNO" "$AWS_REGION" quantservice "$IMAGEN_QUANT"
+
+      - name: Verificar que el servicio responde
+        run: |
+          set -euo pipefail
+          DNS=$(aws cloudformation describe-stacks \
+            --stack-name "RoboX-${ENTORNO}-Compute" \
+            --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDns'].OutputValue" \
+            --output text)
+          echo "Comprobando http://$DNS/health"
+          for intento in $(seq 1 30); do
+            if curl -sf "http://$DNS/health" > /dev/null; then
+              echo "El servicio responde correctamente"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "El servicio no respondio tras 5 minutos"
+          exit 1

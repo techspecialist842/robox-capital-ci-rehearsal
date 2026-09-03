@@ -1,4 +1,4 @@
-import { Stack, StackProps, Tags } from "aws-cdk-lib";
+import { CfnOutput, Stack, StackProps, Tags } from "aws-cdk-lib";
 import { Port, SecurityGroup, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 
@@ -82,6 +82,20 @@ export class NetworkStack extends Stack {
       Port.tcp(8000),
       "quant-service desde el api-gateway",
     );
+
+    // Salidas y no etiquetas: el pipeline necesita estos valores para lanzar la
+    // tarea de migraciones, y las etiquetas de subred que genera CDK dependen de
+    // la ruta del constructo, no del nombre de la VPC. Una salida es un contrato
+    // estable; una etiqueta, un detalle de implementacion.
+    new CfnOutput(this, "AppSubnetIds", {
+      value: this.vpc.selectSubnets({ subnetType: SubnetType.PRIVATE_WITH_EGRESS })
+        .subnetIds.join(","),
+      description: "Subredes de aplicacion, separadas por comas",
+    });
+
+    new CfnOutput(this, "AppSecurityGroupId", {
+      value: this.appSecurityGroup.securityGroupId,
+    });
 
     Tags.of(this).add("robox:environment", props.environmentName);
     Tags.of(this).add("robox:managed-by", "cdk");
