@@ -15,7 +15,8 @@
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "migration:run": "npm run typeorm -- migration:run -d src/database/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts",
-    "migration:run:prod": "node dist/database/ensure-database.js && node ./node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js"
+    "migration:run:prod": "node dist/database/ensure-database.js && node ./node_modules/typeorm/cli.js migration:run -d dist/database/data-source.js",
+    "seed:admin": "node dist/database/seed-admin.js"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.1108.0",
