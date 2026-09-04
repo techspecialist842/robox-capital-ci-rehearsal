@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ENTIDADES, MIGRACIONES } from "./schema";
+import { configuracionTls } from "./ssl";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ENTIDADES, MIGRACIONES } from "./schema";
         database: config.get<string>("database.database"),
         username: config.get<string>("database.username"),
         password: config.get<string>("database.password"),
+        ssl: configuracionTls(),
         entities: ENTIDADES,
         migrations: MIGRACIONES,
         // Las migraciones se ejecutan explicitamente (npm run migration:run), nunca

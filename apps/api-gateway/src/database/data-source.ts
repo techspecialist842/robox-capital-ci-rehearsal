@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { config } from "dotenv";
 import { DataSource } from "typeorm";
 import { ENTIDADES, MIGRACIONES } from "./schema";
+import { configuracionTls } from "./ssl";
 
 config({ path: "../../.env" });
 
@@ -22,4 +23,5 @@ export default new DataSource({
   password: process.env.POSTGRES_PASSWORD ?? "robox_dev_only",
   entities: ENTIDADES,
   migrations: MIGRACIONES,
+  ssl: configuracionTls(),
 });

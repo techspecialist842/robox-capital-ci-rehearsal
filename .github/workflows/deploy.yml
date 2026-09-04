@@ -26,6 +26,11 @@ permissions:
   id-token: write
   contents: read
 
+# Dos despliegues simultaneos al mismo entorno se pisarian. El segundo espera.
+concurrency:
+  group: despliegue-${{ inputs.entorno || 'dev' }}
+  cancel-in-progress: false
+
 env:
   AWS_REGION: us-east-2
   ENTORNO: ${{ inputs.entorno || 'dev' }}
@@ -56,17 +61,31 @@ jobs:
       - name: Publicar imagen del api-gateway
         working-directory: apps/api-gateway
         run: |
+          set -euo pipefail
           IMAGEN="${{ steps.ecr.outputs.registry }}/robox-${ENTORNO}-apigateway:${GITHUB_SHA}"
-          docker build -t "$IMAGEN" .
-          docker push "$IMAGEN"
+          # Las etiquetas son inmutables a proposito. Reejecutar el mismo commit
+          # no es un error: la imagen ya publicada es, por definicion, la misma.
+          if aws ecr describe-images --repository-name "robox-${ENTORNO}-apigateway"                --image-ids imageTag="${GITHUB_SHA}" > /dev/null 2>&1; then
+            echo "La imagen ya existe; se reutiliza."
+          else
+            docker build -t "$IMAGEN" .
+            docker push "$IMAGEN"
+          fi
           echo "IMAGEN_API=$IMAGEN" >> "$GITHUB_ENV"
 
       - name: Publicar imagen del quant-service
         working-directory: apps/quant-service
         run: |
+          set -euo pipefail
           IMAGEN="${{ steps.ecr.outputs.registry }}/robox-${ENTORNO}-quantservice:${GITHUB_SHA}"
-          docker build -t "$IMAGEN" .
-          docker push "$IMAGEN"
+          # Las etiquetas son inmutables a proposito. Reejecutar el mismo commit
+          # no es un error: la imagen ya publicada es, por definicion, la misma.
+          if aws ecr describe-images --repository-name "robox-${ENTORNO}-quantservice"                --image-ids imageTag="${GITHUB_SHA}" > /dev/null 2>&1; then
+            echo "La imagen ya existe; se reutiliza."
+          else
+            docker build -t "$IMAGEN" .
+            docker push "$IMAGEN"
+          fi
           echo "IMAGEN_QUANT=$IMAGEN" >> "$GITHUB_ENV"
 
       # ECS no permite cambiar la imagen en un run-task, asi que primero se

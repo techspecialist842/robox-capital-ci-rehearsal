@@ -97,6 +97,7 @@ export class CicdStack extends Stack {
           "ecr:PutImage",
           "ecr:UploadLayerPart",
           "ecr:BatchGetImage",
+          "ecr:DescribeImages",
           "ecr:GetDownloadUrlForLayer",
         ],
         resources: [
