@@ -47,10 +47,20 @@ export class CicdStack extends Stack {
         StringEquals: {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
         },
-        // Acota a rama, no solo a repositorio: de lo contrario, una rama creada
-        // por cualquiera con permiso de escritura podria desplegar.
+        // Se aceptan DOS formas de la afirmacion "sub" porque GitHub la cambia
+        // segun el contexto: si el job declara un "environment", el token dice
+        // "environment:<nombre>" en lugar de "ref:refs/heads/<rama>". Declarar
+        // solo la forma de rama hace que el despliegue falle con un
+        // "Not authorized to perform sts:AssumeRoleWithWebIdentity" que no
+        // explica nada. Ocurrio en el primer intento real.
+        //
+        // La forma con entorno es ademas la mas segura: ata el rol al entorno de
+        // despliegue, cuyas reglas de proteccion se configuran en GitHub.
         StringLike: {
-          "token.actions.githubusercontent.com:sub": `repo:${githubRepository}:ref:refs/heads/${githubBranch}`,
+          "token.actions.githubusercontent.com:sub": [
+            `repo:${githubRepository}:environment:${environmentName}`,
+            `repo:${githubRepository}:ref:refs/heads/${githubBranch}`,
+          ],
         },
       }),
     });
