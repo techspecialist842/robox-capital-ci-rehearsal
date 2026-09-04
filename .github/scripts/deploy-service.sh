@@ -1,55 +1,39 @@
 #!/usr/bin/env bash
 #
-# Actualiza un servicio de ECS a una imagen concreta y espera a que estabilice.
+# Actualiza un servicio de ECS a una revision ya registrada y espera a que
+# estabilice. Escalar de cero a la capacidad objetivo forma parte de esto: los
+# servicios se crean sin tareas cuando aun no hay imagen publicada.
 #
-# Se registra una revision nueva de la definicion de tarea con la imagen dada, en
-# lugar de forzar un redespliegue de la actual: asi la revision desplegada
-# identifica exactamente que imagen corre, y volver atras es seleccionar una
-# revision anterior.
-#
-# Uso: deploy-service.sh <entorno> <region> <servicio> <imagen>
+# Uso: deploy-service.sh <entorno> <region> <servicio> <revision-arn>
 set -euo pipefail
 
 ENTORNO="$1"
 REGION="$2"
 SERVICIO="$3"
-IMAGEN="$4"
+REVISION="$4"
 
 CLUSTER="robox-${ENTORNO}"
-FAMILIA="robox-${ENTORNO}-${SERVICIO}"
+NOMBRE="robox-${ENTORNO}-${SERVICIO}"
+DESEADAS=$([ "$ENTORNO" = "prod" ] && echo 2 || echo 1)
 
-echo "Desplegando ${SERVICIO} con ${IMAGEN}"
-
-DEFINICION=$(aws ecs describe-task-definition --region "$REGION" \
-  --task-definition "$FAMILIA" --query "taskDefinition")
-
-NUEVA=$(echo "$DEFINICION" | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-# Campos que devuelve describe pero que register no acepta.
-for campo in ('taskDefinitionArn', 'revision', 'status', 'requiresAttributes',
-              'compatibilities', 'registeredAt', 'registeredBy'):
-    d.pop(campo, None)
-d['containerDefinitions'][0]['image'] = '${IMAGEN}'
-print(json.dumps(d))
-")
-
-REVISION=$(aws ecs register-task-definition --region "$REGION" \
-  --cli-input-json "$NUEVA" \
-  --query "taskDefinition.taskDefinitionArn" --output text)
-
-echo "Revision registrada: ${REVISION}"
+echo "Desplegando ${NOMBRE} con ${REVISION}"
 
 aws ecs update-service --region "$REGION" \
   --cluster "$CLUSTER" \
-  --service "robox-${ENTORNO}-${SERVICIO}" \
+  --service "$NOMBRE" \
   --task-definition "$REVISION" \
+  --desired-count "$DESEADAS" \
   > /dev/null
 
 echo "Esperando a que el servicio estabilice..."
 # El interruptor de circuito del servicio revierte solo si el despliegue falla;
 # esta espera hace que el pipeline lo refleje en lugar de darlo por bueno.
-aws ecs wait services-stable --region "$REGION" \
-  --cluster "$CLUSTER" --services "robox-${ENTORNO}-${SERVICIO}"
+if ! aws ecs wait services-stable --region "$REGION" \
+  --cluster "$CLUSTER" --services "$NOMBRE"; then
+  echo "El servicio no estabilizo. Ultimos eventos:" >&2
+  aws ecs describe-services --region "$REGION" --cluster "$CLUSTER" \
+    --services "$NOMBRE" --query "services[0].events[0:5].message" --output text >&2
+  exit 1
+fi
 
-echo "${SERVICIO} desplegado"
+echo "${NOMBRE} desplegado"

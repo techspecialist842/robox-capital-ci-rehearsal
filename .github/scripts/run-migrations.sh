@@ -2,22 +2,23 @@
 #
 # Aplica las migraciones como tarea aislada de ECS, ANTES de mover el trafico.
 #
-# Se ejecuta con la imagen recien publicada, no con la que esta corriendo: el
-# esquema y el codigo que lo espera vienen del mismo commit. Si la migracion
-# falla, este script devuelve error, el despliegue se detiene y la version en
-# funcionamiento sigue intacta.
+# Recibe la revision ya registrada con la imagen nueva, no la imagen: ECS no
+# permite sobrescribir la imagen en un run-task (containerOverrides solo admite
+# name, command, environment, cpu, memory y resourceRequirements). Ejecutar con
+# la misma revision que luego se despliega garantiza que el esquema y el codigo
+# que lo espera vienen del mismo commit.
 #
-# Uso: run-migrations.sh <entorno> <region> <imagen>
+# Si la migracion falla, este script devuelve error, el despliegue se detiene y
+# la version en funcionamiento sigue intacta.
+#
+# Uso: run-migrations.sh <entorno> <region> <revision-arn>
 set -euo pipefail
 
 ENTORNO="$1"
 REGION="$2"
-IMAGEN="$3"
+REVISION="$3"
 
 CLUSTER="robox-${ENTORNO}"
-FAMILIA="robox-${ENTORNO}-apigateway"
-
-echo "Lanzando migraciones con ${IMAGEN}"
 
 # La red se lee de las salidas de la pila, no de etiquetas: las etiquetas de
 # subred que genera CDK dependen de la ruta del constructo y cambian si se
@@ -36,13 +37,20 @@ if [ -z "$SUBREDES" ] || [ -z "$GRUPO" ] || [ "$GRUPO" = "None" ]; then
   exit 1
 fi
 
+echo "Lanzando migraciones con ${REVISION}"
+
 TAREA=$(aws ecs run-task --region "$REGION" \
   --cluster "$CLUSTER" \
-  --task-definition "$FAMILIA" \
+  --task-definition "$REVISION" \
   --launch-type FARGATE \
   --network-configuration "awsvpcConfiguration={subnets=[${SUBREDES}],securityGroups=[${GRUPO}],assignPublicIp=DISABLED}" \
-  --overrides "{\"containerOverrides\":[{\"name\":\"ApiGatewayContainer\",\"image\":\"${IMAGEN}\",\"command\":[\"npm\",\"run\",\"migration:run:prod\"]}]}" \
+  --overrides '{"containerOverrides":[{"name":"ApiGatewayContainer","command":["npm","run","migration:run:prod"]}]}' \
   --query "tasks[0].taskArn" --output text)
+
+if [ -z "$TAREA" ] || [ "$TAREA" = "None" ]; then
+  echo "No se pudo lanzar la tarea de migracion" >&2
+  exit 1
+fi
 
 echo "Tarea de migracion: ${TAREA}"
 aws ecs wait tasks-stopped --region "$REGION" --cluster "$CLUSTER" --tasks "$TAREA"
