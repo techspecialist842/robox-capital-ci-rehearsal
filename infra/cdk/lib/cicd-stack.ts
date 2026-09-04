@@ -34,6 +34,7 @@ export class CicdStack extends Stack {
     super(scope, id, props);
 
     const { environmentName, githubRepository, githubBranch } = props;
+    const [duenno, repositorio] = githubRepository.split("/");
 
     const provider = new OpenIdConnectProvider(this, "GitHubOidcProvider", {
       url: "https://token.actions.githubusercontent.com",
@@ -47,17 +48,29 @@ export class CicdStack extends Stack {
         StringEquals: {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
         },
-        // Se aceptan DOS formas de la afirmacion "sub" porque GitHub la cambia
-        // segun el contexto: si el job declara un "environment", el token dice
-        // "environment:<nombre>" en lugar de "ref:refs/heads/<rama>". Declarar
-        // solo la forma de rama hace que el despliegue falle con un
-        // "Not authorized to perform sts:AssumeRoleWithWebIdentity" que no
-        // explica nada. Ocurrio en el primer intento real.
+        // Los patrones toleran los identificadores numericos que GitHub incrusta
+        // en la afirmacion "sub" cuando el repositorio usa identificadores
+        // inmutables. El valor real observado es:
         //
-        // La forma con entorno es ademas la mas segura: ata el rol al entorno de
-        // despliegue, cuyas reglas de proteccion se configuran en GitHub.
+        //   repo:duenno@301936007/repositorio@1331166378:environment:dev
+        //
+        // y no "repo:duenno/repositorio:environment:dev" como cabria esperar. Esa
+        // funcion protege frente a renombrados y transferencias: el identificador
+        // no cambia aunque el nombre si. No es opcional ni predecible desde fuera,
+        // asi que se aceptan ambas formas.
+        //
+        // "@*" es preciso: el nombre debe coincidir exacto y solo el identificador
+        // que le sigue es variable.
+        //
+        // Ademas se aceptan las dos variantes de contexto: cuando un job declara
+        // un "environment", GitHub emite "environment:<nombre>" en lugar de
+        // "ref:refs/heads/<rama>".
+        //
+        // Se descubrio leyendo el token real; deducirlo no era posible.
         StringLike: {
           "token.actions.githubusercontent.com:sub": [
+            `repo:${duenno}@*/${repositorio}@*:environment:${environmentName}`,
+            `repo:${duenno}@*/${repositorio}@*:ref:refs/heads/${githubBranch}`,
             `repo:${githubRepository}:environment:${environmentName}`,
             `repo:${githubRepository}:ref:refs/heads/${githubBranch}`,
           ],
