@@ -69,22 +69,29 @@ jobs:
           docker push "$IMAGEN"
           echo "IMAGEN_QUANT=$IMAGEN" >> "$GITHUB_ENV"
 
-      # Antes de mover trafico. Usa la imagen recien publicada, de modo que el
-      # esquema y el codigo que lo espera provienen del mismo commit.
-      - name: Aplicar migraciones como tarea aislada
+      # ECS no permite cambiar la imagen en un run-task, asi que primero se
+      # registra la revision y despues se usa LA MISMA para migrar y para
+      # desplegar: si fueran distintas, el esquema y el codigo que lo espera
+      # podrian venir de commits diferentes.
+      - name: Registrar revisiones de las definiciones de tarea
         run: |
           set -euo pipefail
-          bash .github/scripts/run-migrations.sh "$ENTORNO" "$AWS_REGION" "$IMAGEN_API"
+          REV_API=$(bash .github/scripts/register-revision.sh "$ENTORNO" "$AWS_REGION" apigateway "$IMAGEN_API")
+          REV_QUANT=$(bash .github/scripts/register-revision.sh "$ENTORNO" "$AWS_REGION" quantservice "$IMAGEN_QUANT")
+          echo "Revision api-gateway:   $REV_API"
+          echo "Revision quant-service: $REV_QUANT"
+          echo "REV_API=$REV_API" >> "$GITHUB_ENV"
+          echo "REV_QUANT=$REV_QUANT" >> "$GITHUB_ENV"
+
+      # Antes de mover trafico.
+      - name: Aplicar migraciones como tarea aislada
+        run: bash .github/scripts/run-migrations.sh "$ENTORNO" "$AWS_REGION" "$REV_API"
 
       - name: Desplegar api-gateway
-        run: |
-          bash .github/scripts/deploy-service.sh \
-            "$ENTORNO" "$AWS_REGION" apigateway "$IMAGEN_API"
+        run: bash .github/scripts/deploy-service.sh "$ENTORNO" "$AWS_REGION" apigateway "$REV_API"
 
       - name: Desplegar quant-service
-        run: |
-          bash .github/scripts/deploy-service.sh \
-            "$ENTORNO" "$AWS_REGION" quantservice "$IMAGEN_QUANT"
+        run: bash .github/scripts/deploy-service.sh "$ENTORNO" "$AWS_REGION" quantservice "$REV_QUANT"
 
       - name: Verificar que el servicio responde
         run: |
