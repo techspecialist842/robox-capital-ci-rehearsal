@@ -1,5 +1,6 @@
 import { RemovalPolicy, Stack, StackProps, Tags } from "aws-cdk-lib";
 import { Key } from "aws-cdk-lib/aws-kms";
+import { PolicyStatement, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 
@@ -25,6 +26,37 @@ export class SecretsStack extends Stack {
       removalPolicy:
         props.environmentName === "prod" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
     });
+
+    // CloudWatch Logs necesita permiso explicito para cifrar con esta clave.
+    //
+    // Normalmente CDK lo anadiria solo al crear un grupo de logs cifrado, pero
+    // ComputeStack importa la clave por ARN para romper un ciclo entre pilas, y
+    // una clave importada no puede modificar su politica. Ese es el precio del
+    // arreglo del ciclo: los permisos que CDK concedia de forma automatica hay
+    // que declararlos aqui.
+    //
+    // Se descubrio en el primer despliegue real: "The specified KMS key does not
+    // exist or is not allowed to be used with Arn ...log-group:/ecs/robox-dev".
+    this.encryptionKey.addToResourcePolicy(
+      new PolicyStatement({
+        principals: [new ServicePrincipal(`logs.${this.region}.amazonaws.com`)],
+        actions: [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*",
+        ],
+        resources: ["*"],
+        // Acota el permiso a los grupos de logs de esta cuenta y region: sin la
+        // condicion, el servicio podria usar la clave para cualquier cosa.
+        conditions: {
+          ArnEquals: {
+            "kms:EncryptionContext:aws:logs:arn": `arn:aws:logs:${this.region}:${this.account}:log-group:*`,
+          },
+        },
+      }),
+    );
 
     // Nota: las credenciales de PostgreSQL se generan dentro de DatabaseStack
     // (no aqui) para evitar el ciclo de dependencia conocido de CDK cuando

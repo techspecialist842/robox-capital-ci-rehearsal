@@ -103,6 +103,7 @@ const compute = new ComputeStack(app, `RoboX-${environmentName}-Compute`, {
   eventsTopic: events.topic,
   quantServiceQueue: events.quantServiceQueue,
   aiProviderApiKeyArn: secrets.aiProviderApiKey.secretArn,
+  imageTag: app.node.tryGetContext("imageTag") ?? "bootstrap",
   env,
 });
 

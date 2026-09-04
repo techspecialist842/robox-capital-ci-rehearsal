@@ -43,6 +43,17 @@ export interface ComputeStackProps extends StackProps {
   eventsTopic: ITopic;
   quantServiceQueue: IQueue;
   aiProviderApiKeyArn: string;
+  /**
+   * Etiqueta de imagen a desplegar. "bootstrap" significa que todavia no se ha
+   * publicado ninguna: en ese caso los servicios se crean con CERO tareas.
+   *
+   * No se puede crear un servicio ECS cuya imagen no existe: las tareas fallan
+   * al descargarla, salta el interruptor de circuito y CloudFormation revierte la
+   * pila entera. Y el repositorio lo crea esta misma pila, asi que en el primer
+   * despliegue no puede haber nada publicado. Con cero tareas la infraestructura
+   * se crea, y el pipeline la escala cuando ya hay imagen que ejecutar.
+   */
+  imageTag: string;
 }
 
 /**
@@ -233,6 +244,7 @@ export class ComputeStack extends Stack {
     secretos: Record<string, EcsSecret>;
   }): FargateService {
     const { nombre, cluster, logGroup, props, puerto, imagen, entorno, secretos } = opciones;
+    const sinImagenPublicada = props.imageTag === "bootstrap";
 
     const taskDefinition = new FargateTaskDefinition(this, `${nombre}Task`, {
       family: `robox-${props.environmentName}-${nombre.toLowerCase()}`,
@@ -241,10 +253,9 @@ export class ComputeStack extends Stack {
     });
 
     taskDefinition.addContainer(`${nombre}Container`, {
-      // "bootstrap" es una etiqueta marcador: el pipeline despliega la imagen
-      // real por commit. CDK exige una imagen valida para sintetizar, pero la
-      // version desplegada nunca se decide aqui.
-      image: ContainerImage.fromEcrRepository(imagen, "bootstrap"),
+      // La etiqueta llega por contexto: el pipeline despliega por commit, de modo
+      // que la version en ejecucion es rastreable hasta el codigo que la produjo.
+      image: ContainerImage.fromEcrRepository(imagen, props.imageTag),
       environment: entorno,
       secrets: secretos,
       logging: new AwsLogDriver({ streamPrefix: nombre.toLowerCase(), logGroup }),
@@ -257,7 +268,11 @@ export class ComputeStack extends Stack {
       taskDefinition,
       securityGroups: [props.appSecurityGroup],
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
-      desiredCount: props.environmentName === "prod" ? 2 : 1,
+      desiredCount: sinImagenPublicada
+        ? 0
+        : props.environmentName === "prod"
+          ? 2
+          : 1,
       // Explicito: con una sola tarea en desarrollo se acepta una interrupcion
       // durante el despliegue; en produccion no se baja de la capacidad actual.
       minHealthyPercent: props.environmentName === "prod" ? 100 : 0,
