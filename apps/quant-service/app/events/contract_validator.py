@@ -5,12 +5,31 @@ sobre la forma de un evento.
 """
 
 import json
+import os
 from functools import cache
 from pathlib import Path
 
 from jsonschema import Draft7Validator, ValidationError
 
-SCHEMAS_DIR = Path(__file__).resolve().parents[4] / "packages" / "event-contracts" / "schemas"
+
+def _resolver_directorio_de_esquemas() -> Path:
+    """Localiza los esquemas de eventos.
+
+    En el contenedor la aplicacion no vive dentro del monorepo, asi que deducir
+    la ruta contando carpetas hacia arriba falla con IndexError y el servicio ni
+    siquiera arranca. Ocurrio en el primer despliegue real.
+
+    EVENT_CONTRACTS_DIR lo declara la imagen; el calculo relativo queda como
+    respaldo para ejecutar en local desde el repositorio.
+    """
+    declarado = os.environ.get("EVENT_CONTRACTS_DIR")
+    if declarado:
+        return Path(declarado)
+
+    return Path(__file__).resolve().parents[4] / "packages" / "event-contracts" / "schemas"
+
+
+SCHEMAS_DIR = _resolver_directorio_de_esquemas()
 
 
 class UnknownEventTypeError(Exception):

@@ -73,8 +73,8 @@ jobs:
           fi
           echo "IMAGEN_API=$IMAGEN" >> "$GITHUB_ENV"
 
+      # Contexto en la raiz: la imagen debe incluir packages/event-contracts.
       - name: Publicar imagen del quant-service
-        working-directory: apps/quant-service
         run: |
           set -euo pipefail
           IMAGEN="${{ steps.ecr.outputs.registry }}/robox-${ENTORNO}-quantservice:${GITHUB_SHA}"
@@ -83,7 +83,7 @@ jobs:
           if aws ecr describe-images --repository-name "robox-${ENTORNO}-quantservice"                --image-ids imageTag="${GITHUB_SHA}" > /dev/null 2>&1; then
             echo "La imagen ya existe; se reutiliza."
           else
-            docker build -t "$IMAGEN" .
+            docker build -f apps/quant-service/Dockerfile -t "$IMAGEN" .
             docker push "$IMAGEN"
           fi
           echo "IMAGEN_QUANT=$IMAGEN" >> "$GITHUB_ENV"
