@@ -105,27 +105,47 @@ export class CicdStack extends Stack {
       }),
     );
 
-    // Desplegar y ejecutar la tarea de migraciones.
+    // Leer las salidas de las pilas: el pipeline obtiene de ahi las subredes, el
+    // grupo de seguridad y el DNS del balanceador. Acotado a las pilas de roboX.
+    this.deployRole.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["cloudformation:DescribeStacks"],
+        resources: [
+          `arn:aws:cloudformation:${this.region}:${this.account}:stack/RoboX-${environmentName}-*/*`,
+        ],
+      }),
+    );
+
+    // Acciones que SI operan sobre un clúster: se acotan al de este entorno.
     this.deployRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
           "ecs:DescribeServices",
           "ecs:UpdateService",
-          "ecs:DescribeTaskDefinition",
-          "ecs:RegisterTaskDefinition",
           "ecs:RunTask",
           "ecs:DescribeTasks",
           "ecs:ListTasks",
         ],
         resources: ["*"],
         conditions: {
-          // Restringe la accion al clúster de este entorno: sin esto, el rol
-          // podria operar sobre cualquier clúster de la cuenta.
           ArnEquals: {
             "ecs:cluster": `arn:aws:ecs:${this.region}:${this.account}:cluster/robox-${environmentName}`,
           },
         },
+      }),
+    );
+
+    // Las acciones sobre definiciones de tarea NO admiten la clave de condicion
+    // "ecs:cluster": no operan sobre un clúster. Incluirlas en la sentencia
+    // anterior las habria denegado en silencio, porque una condicion cuya clave
+    // no existe en la peticion nunca se cumple.
+    this.deployRole.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["ecs:DescribeTaskDefinition", "ecs:RegisterTaskDefinition"],
+        resources: ["*"],
       }),
     );
 
