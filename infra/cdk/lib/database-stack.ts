@@ -64,6 +64,11 @@ export class DatabaseStack extends Stack {
       vpcSubnets: dataSubnets,
       securityGroups: [dbSecurityGroup],
       engine: DatabaseInstanceEngine.postgres({ version: PostgresEngineVersion.VER_16 }),
+      // NO se declara databaseName. Es una propiedad inmutable: cambiarla obliga
+      // a reemplazar la instancia, y CloudFormation se niega a hacerlo cuando la
+      // instancia tiene nombre propio. La base de la aplicacion la crea el propio
+      // despliegue (src/database/ensure-database.ts), de forma idempotente y sin
+      // destruir nada. Se descubrio intentando lo contrario.
       instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.MICRO),
       // Secreto generado y co-localizado en este mismo stack (ver nota en
       // secrets-stack.ts) — evita el ciclo de dependencia entre stacks.
