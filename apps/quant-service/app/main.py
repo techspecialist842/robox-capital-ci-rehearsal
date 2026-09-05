@@ -9,6 +9,12 @@ from app.events.lifecycle import detener_consumidor, iniciar_consumidor
 from app.events.router import router as events_router
 from app.health import router as health_router
 from app.market_data.router import router as market_data_router
+from app.observabilidad.middleware import MiddlewareDeCorrelacion
+from app.observabilidad.registro import configurar as configurar_registro
+
+# Antes de crear la aplicacion: asi los propios mensajes de arranque de uvicorn
+# salen ya en JSON y no en su formato por defecto.
+configurar_registro()
 
 
 @asynccontextmanager
@@ -32,6 +38,8 @@ app = FastAPI(
     version="0.2.0",
     lifespan=ciclo_de_vida,
 )
+
+app.add_middleware(MiddlewareDeCorrelacion)
 
 app.include_router(health_router)
 app.include_router(events_router)

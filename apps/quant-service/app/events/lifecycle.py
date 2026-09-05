@@ -16,6 +16,8 @@ import logging
 import os
 import threading
 
+from app.observabilidad import correlacion
+
 from .consumer import SqsEventConsumer
 
 logger = logging.getLogger("robox.quant_service.lifecycle")
@@ -31,12 +33,17 @@ def _registrar_evento(evento: dict) -> None:
     recepcion para que el recorrido sea observable. Los consumidores reales
     (datos de mercado, decisiones) se enganchan aqui en fases posteriores.
     """
-    logger.info(
-        "evento consumido: %s v%s (%s)",
-        evento["eventType"],
-        evento["eventVersion"],
-        evento["eventId"],
-    )
+    # Cada evento abre su propio contexto: el eventId es lo que permite seguir
+    # una operacion asincrona, igual que la cabecera lo permite en una peticion.
+    testigo = correlacion.establecer(evento["eventId"])
+    try:
+        logger.info(
+            "evento consumido: %s v%s",
+            evento["eventType"],
+            evento["eventVersion"],
+        )
+    finally:
+        correlacion.restaurar(testigo)
 
 
 def iniciar_consumidor() -> None:
