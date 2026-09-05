@@ -98,3 +98,24 @@ class TestMiddleware:
         b = cliente.get("/health").headers["x-correlation-id"]
 
         assert a != b
+
+
+class TestRuidoDeLibrerias:
+    """Las librerias de AWS no deben inundar el log en modo debug.
+
+    Con DEBUG global, botocore emite decenas de lineas por cada sondeo de SQS.
+    El consumidor sondea de forma continua, asi que ese ruido se paga en
+    CloudWatch y entierra los mensajes propios.
+    """
+
+    def test_las_librerias_de_aws_quedan_en_warning(self, monkeypatch):
+        import logging as log
+
+        from app.observabilidad.registro import configurar
+
+        monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+        configurar()
+
+        assert log.getLogger().level == log.DEBUG, "la aplicacion si registra en debug"
+        for ruidoso in ("botocore", "boto3", "urllib3", "s3transfer"):
+            assert log.getLogger(ruidoso).level == log.WARNING, ruidoso

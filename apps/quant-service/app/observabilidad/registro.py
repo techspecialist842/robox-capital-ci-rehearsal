@@ -82,3 +82,16 @@ def configurar() -> None:
         registrador = logging.getLogger(nombre)
         registrador.handlers = []
         registrador.propagate = True
+
+    # Las librerias de AWS se silencian por debajo de WARNING, incluso cuando el
+    # nivel de la aplicacion es "debug".
+    #
+    # Con DEBUG global, botocore emite decenas de lineas por cada sondeo de SQS.
+    # El consumidor sondea cada 20 segundos de forma continua, asi que en dev eso
+    # supone un volumen enorme de ruido que ademas se paga: CloudWatch cobra por
+    # GB ingerido. Y lo peor no es el coste, sino que los mensajes propios quedan
+    # enterrados, que es exactamente lo contrario de para lo que existe el log.
+    #
+    # Se observo en el primer despliegue con logging ya configurado.
+    for ruidoso in ("botocore", "boto3", "urllib3", "s3transfer"):
+        logging.getLogger(ruidoso).setLevel(logging.WARNING)
