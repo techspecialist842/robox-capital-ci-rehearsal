@@ -1,15 +1,18 @@
 # Runbook de entornos — roboX Capital
 
 Procedimientos operativos de la plataforma. Entregable de la Fase 1 ("Runbooks de
-entorno"). Cada procedimiento indica si ya es ejecutable o si espera a que exista
-la infraestructura AWS (Open Item 5).
+entorno").
 
 | Entorno | Estado | Notas |
 |---|---|---|
 | local | Operativo | Postgres y Redis nativos o `docker-compose.yml` |
-| desarrollo | Pendiente | Requiere cuentas AWS |
-| staging | Pendiente | Requiere cuentas AWS |
+| desarrollo | **Operativo** | Cuenta `762197749856`, region `us-east-2` |
+| staging | Pendiente | Requiere una cuenta adicional |
 | produccion | No previsto hasta la Fase 6 | — |
+
+El entorno de desarrollo esta desplegado y en funcionamiento. El api-gateway se
+expone a traves del balanceador; el quant-service solo es alcanzable dentro de la
+VPC.
 
 ---
 
@@ -93,7 +96,7 @@ En local:
 npm start | grep '"correlationId":"<id>"'
 ```
 
-En AWS (CloudWatch Logs Insights), una vez desplegado:
+En AWS (CloudWatch Logs Insights), grupo `/ecs/robox-dev`:
 
 ```
 fields @timestamp, level, service, message, userId
@@ -171,12 +174,49 @@ acordada, no en caliente.
 
 ---
 
-## 8. Pendiente de la infraestructura AWS
+## 8. Despliegue
 
-Estos procedimientos no se pueden redactar con precision hasta que existan las
-cuentas (Open Item 5), porque dependen de los recursos concretos que se creen:
+El despliegue lo hace el pipeline (`.github/workflows/deploy.yml`), nunca a mano.
+Se dispara con cada cambio en `main` y puede lanzarse a mano para elegir entorno.
 
-- Despliegue y rollback en dev/staging.
-- Restauracion desde copia de seguridad y verificacion de RPO/RTO.
-- Respuesta a alertas (umbrales pendientes del Open Item 4).
+El orden no es casual: publicar imagenes, aplicar las migraciones **como tarea
+aislada**, y solo si esa tarea termina bien, mover el trafico. Si una migracion
+falla, el despliegue se detiene y la version en funcionamiento no se toca.
+
+Las imagenes se etiquetan con el SHA del commit y los repositorios usan etiquetas
+inmutables, asi que cada version desplegada es rastreable hasta su codigo exacto.
+
+### Volver a una version anterior
+
+```bash
+aws ecs list-task-definitions --family-prefix robox-dev-apigateway --region us-east-2
+
+aws ecs update-service --cluster robox-dev --service robox-dev-apigateway \
+  --task-definition robox-dev-apigateway:<N> --region us-east-2
+```
+
+Volver atras NO deshace una migracion de base de datos. Si la version anterior no
+entiende el esquema nuevo, hay que revertir tambien la migracion, y eso se decide
+caso por caso.
+
+### Consultar los logs en AWS
+
+Ambos servicios escriben en el grupo `/ecs/robox-dev` con el mismo esquema de
+campos, de modo que una sola consulta los cruza:
+
+```
+fields @timestamp, service, level, message, correlationId
+| filter correlationId = "<id>"
+| sort @timestamp asc
+```
+
+---
+
+## 9. Pendiente de ensayar
+
+- **Restauracion desde copia de seguridad** y verificacion de RPO/RTO contra los
+  objetivos aprobados en [objetivos-no-funcionales.md](../objetivos-no-funcionales.md).
+  Las copias automaticas de RDS estan activas, pero nunca se ha probado una
+  restauracion: hasta hacerlo, el RPO es una expectativa y no un hecho.
 - Rotacion programada en Secrets Manager.
+- Entorno de staging, cuando exista la cuenta.

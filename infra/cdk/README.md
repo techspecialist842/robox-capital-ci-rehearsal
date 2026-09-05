@@ -82,12 +82,35 @@ Si `cdk synth`/`tsc` se quedan sin memoria en una máquina con poca RAM libre, c
 `NODE_OPTIONS="--max-old-space-size=768"` y usar el binario compilado
 (`--app "node dist/bin/app.js"`) en vez de `ts-node` — consume bastante menos memoria.
 
-## Estado: no desplegado
+## Estado: desplegado en desarrollo
 
-Este código fue **verificado con `cdk synth`** (sintetiza correctamente a plantillas de
-CloudFormation válidas para los tres stacks) pero **nunca desplegado a una cuenta AWS
-real**, porque el proveedor todavía no tiene acceso a la AWS Organization de roboX
-Capital (Open Item 5, ver Kickoff de la Fase 1 y Entregables del Paso 0 §11). En cuanto
-el cliente otorgue el acceso federado al Arquitecto de Soluciones vía AWS IAM Identity
-Center, el Día 1 del plan de arranque continúa con `cdk bootstrap` + `cdk deploy` contra
-la cuenta de desarrollo.
+Las siete pilas están desplegadas en la cuenta `762197749856` (`us-east-2`), todas en
+`CREATE_COMPLETE`. Staging no existe todavía: requiere una cuenta adicional.
+
+### Lo que enseñó el primer despliegue
+
+`cdk synth` daba verde y aun así el despliegue falló tres veces. Merece la pena tenerlo
+presente antes de dar por bueno un cambio de infraestructura solo porque sintetiza:
+
+- **La política de la clave KMS no autorizaba a CloudWatch Logs.** Es el precio de
+  importar la clave por ARN para romper el ciclo entre pilas: CDK deja de añadir solos
+  los permisos que concedería, y hay que declararlos.
+- **Un servicio ECS no puede crearse apuntando a una imagen que no existe.** Las tareas
+  fallan al descargarla, salta el interruptor de circuito y CloudFormation revierte la
+  pila entera. Por eso los servicios nacen con cero tareas hasta que hay imagen.
+- **`databaseName` es inmutable.** Cambiarla obliga a reemplazar la instancia, y
+  CloudFormation se niega cuando esta tiene nombre propio. La base de la aplicación la
+  crea el despliegue, no una propiedad irreversible de la infraestructura.
+
+### Desplegar
+
+```bash
+aws sso login --profile robox-dev
+export AWS_PROFILE=robox-dev
+
+npx cdk deploy --all --require-approval never \
+  -c account=762197749856 -c environment=dev
+```
+
+El despliegue de la aplicación lo hace el pipeline; esto es solo para cambios de
+infraestructura.

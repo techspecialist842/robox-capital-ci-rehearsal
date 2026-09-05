@@ -79,9 +79,19 @@ disponibilidad al 99,99 % o bajar el RTO de una hora exige redundancia
 multi-región, que está fuera del alcance del MVP y modificaría la cotización
 acordada.
 
-## Qué falta para que estos números se midan
+## Cómo se miden hoy
 
-Los umbrales están fijados, pero **el monitoreo que los verifica todavía no
-existe**: requiere CloudWatch en las cuentas AWS de roboX (Open Item 5). Hasta
-entonces, la plataforma emite logs estructurados con la latencia de cada petición,
-que es la materia prima de esas métricas, pero nadie las está observando.
+Cuatro alarmas de CloudWatch están activas en el entorno de desarrollo, cada una
+atada a un objetivo de esta página (`infra/cdk/lib/observability-stack.ts`):
+
+| Alarma | Objetivo que vigila |
+|---|---|
+| `robox-dev-latencia-p95` | Consultas de lectura por debajo de 500 ms |
+| `robox-dev-errores-5xx` | Disponibilidad del 99,9 % |
+| `robox-dev-sin-instancias-sanas` | El servicio está caído |
+| `robox-dev-mensajes-en-dlq` | Eventos que ningún reintento arregla |
+
+**Lo que aún no se mide:** los objetivos de recuperación. Las copias automáticas
+de RDS están activas y cubren el RPO de 5 minutos sobre el papel, pero **nunca se
+ha ensayado una restauración**. Hasta hacerlo, tanto el RPO como el RTO son
+expectativas y no hechos comprobados.

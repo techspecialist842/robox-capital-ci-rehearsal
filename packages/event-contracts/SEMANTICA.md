@@ -85,5 +85,11 @@ completo: el api-gateway publica en SNS, el mensaje llega a la cola SQS, el
 quant-service lo consume y valida contra el esquema, y **una reentrega del mismo
 `eventId` no se procesa dos veces**.
 
-No está verificado contra AWS real: eso espera a las cuentas del cliente
-(Open Item 5).
+También está verificado contra AWS real, en el entorno de desarrollo: 4 eventos
+publicados en SNS, 4 entregados a SQS, 0 fallos de entrega, y los 5 acumulados en
+la cola consumidos y borrados, sin ninguno en la cola de fallidos.
+
+Ese recorrido destapó un fallo que las pruebas no podían ver: el consumidor
+estaba escrito y probado, pero **nadie lo arrancaba** al iniciar el servicio. Las
+pruebas de integración lo instanciaban ellas mismas, así que pasaban. Se detectó
+comparando métricas —mensajes entregados frente a consumidos—, no leyendo código.

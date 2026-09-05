@@ -65,9 +65,8 @@ Identidad/MFA/RBAC, el bus de eventos y el servicio cuant tienen lógica mínima
 (guardas, DTOs, endpoints de salud) pensada para que el equipo construya la funcionalidad completa
 encima en las Fases 2–6, no para producción.
 
-No incluye: cuentas AWS reales, credenciales, ni el despliegue efectivo de `infra/cdk` — eso
-depende de que el cliente otorgue acceso a la AWS Organization (Open Item 5, ver el Kickoff de la
-Fase 1).
+La infraestructura **sí está desplegada**: la cuenta de desarrollo (`762197749856`, `us-east-2`)
+ejecuta la plataforma completa. Falta el entorno de staging, que requiere una cuenta adicional.
 
 ## Qué se verificó realmente en esta máquina, y qué no
 
@@ -80,22 +79,29 @@ Windows y no puede levantar imágenes Linux.
 | `apps/api-gateway` (NestJS) | ✅ Sí | `npm run lint && npm run test && npm run build` en local y en CI. Además, arrancado contra Postgres y Redis reales: migración aplicada, login, desafío MFA (TOTP), RBAC y registro de auditoría probados por HTTP. |
 | `apps/quant-service` (Python) | ✅ Sí | `ruff check . && pytest` en local y en CI — incluida la validación de contrato de eventos contra `packages/event-contracts`. |
 | `packages/event-contracts` | ✅ Sí | `npm run validate` en local y en CI: los fixtures cumplen ambos esquemas, validados desde Node y desde Python. |
-| Bus de eventos SNS/SQS (ADR-002) | ✅ Sí (sobre LocalStack) | Recorrido completo en CI: NestJS publica en SNS, el mensaje llega a SQS, Python lo consume y valida el contrato, y **una reentrega del mismo `eventId` no se procesa dos veces**. Semántica en [`SEMANTICA.md`](packages/event-contracts/SEMANTICA.md). **No probado contra AWS real.** |
+| Bus de eventos SNS/SQS (ADR-002) | ✅ Sí (LocalStack **y AWS real**) | En CI sobre LocalStack: NestJS publica en SNS, Python consume y valida el contrato, y **una reentrega del mismo `eventId` no se procesa dos veces**. En AWS `dev`: 4 eventos publicados, 4 entregados, 0 fallos de entrega, 5 consumidos y borrados, 0 en la cola de fallidos. Semántica en [`SEMANTICA.md`](packages/event-contracts/SEMANTICA.md). |
 | `apps/flutter_app` | ✅ Sí | `flutter analyze`, `flutter test` y `flutter build web` en local y en un runner limpio de Ubuntu en CI. Además, la app se abrió en Chrome y se completó un login real contra el api-gateway. |
 | `.github/workflows/ci.yml` | ✅ Sí | Ejecutado de verdad en GitHub Actions. El primer run falló (`ruff: command not found`) y expuso un defecto real del pipeline que el entorno local enmascaraba. |
 | Escaneo de seguridad (Puerta 1) | ✅ Sí | `npm audit`, `pip-audit` y `bandit` en CI. La primera pasada encontró 25 vulnerabilidades (7 altas) en NestJS 10; se actualizó a NestJS 11 y quedaron **0**. |
-| Observabilidad — logs (ADR-009) | ✅ Sí | Logger JSON con `correlationId` propagado por `AsyncLocalStorage`, cubierto por pruebas. **Métricas y alertas siguen pendientes**: requieren CloudWatch. |
-| Gestión de secretos (ADR-008) | ⚠️ Parcial | Abstracción implementada y probada: `SECRETS_PROVIDER=env` **falla el arranque** fuera de local/test. El camino de AWS Secrets Manager está escrito pero **no probado contra AWS real**. |
+| Observabilidad (ADR-009) | ✅ Sí | Logger JSON con `correlationId` en ambos servicios, con el mismo formato para que una consulta pueda cruzarlos. Cuatro alarmas de CloudWatch activas en AWS `dev`, atadas a los objetivos aprobados por el cliente. |
+| Gestión de secretos (ADR-008) | ✅ Sí | `SECRETS_PROVIDER=env` **falla el arranque** fuera de local/test. En AWS `dev` los servicios arrancan con `SECRETS_PROVIDER=aws` y las credenciales de PostgreSQL se inyectan desde Secrets Manager: se comprobó sobre la plantilla desplegada que ninguna variable de entorno lleva un valor sensible. |
 | Feature flags | ✅ Sí | Valor por defecto en código + anulación en Redis, con degradación segura si Redis cae. Cubierto por pruebas. |
-| Runbooks de entorno | ⚠️ Parcial | `docs/runbooks/entornos.md`. Los procedimientos de despliegue, rollback y recuperación esperan a que existan las cuentas AWS. |
-| `infra/cdk` | ⚠️ Parcial | `cdk synth` genera CloudFormation válido para los 3 stacks (se encontró y corrigió un ciclo de dependencia real entre Secrets y Database). **No** se intentó `cdk deploy`: no hay credenciales de la AWS Organization del cliente (Open Item 5). |
+| Runbooks de entorno | ✅ Sí | `docs/runbooks/entornos.md`, actualizado con los procedimientos del entorno desplegado. La recuperación desde copia sigue sin ensayarse. |
+| `infra/cdk` | ✅ Sí | **Desplegado** en la cuenta `762197749856` (`us-east-2`): las siete pilas en `CREATE_COMPLETE`. PostgreSQL y Redis disponibles, cifrados y sin acceso público; tópico SNS con su cola y DLQ; cuatro alarmas activas. El primer despliegue destapó dos fallos que `cdk synth` no podía ver —la política de la clave KMS y un servicio ECS apuntando a una imagen inexistente—, ambos corregidos. |
 | `docker-compose.yml` (Postgres/Redis) | ❌ No | Este Docker está en modo Windows containers; no puede correr imágenes Linux. El equipo debe validarlo en una máquina con Docker Desktop en modo Linux/WSL2 (la config habitual en laptops de desarrollo). |
+| Despliegue desde el pipeline | ✅ Sí | `deploy.yml` publica imágenes en ECR, aplica migraciones como tarea aislada y escala los servicios. Autenticación por OIDC, sin claves permanentes. Ejecutado de verdad contra AWS. |
 
 Cada ronda de verificación destapó defectos reales que quedaron corregidos: un `.parents[N]` mal
 calculado en Python, un ciclo de dependencia en CDK, un conflicto `jti`/`jwtid` al firmar el JWT, un
 tipo de columna que TypeORM no podía inferir, el paso de instalación incompleto del pipeline, y 7
-vulnerabilidades altas heredadas de NestJS 10. Es la razón por la que conviene que el equipo repita
-estos mismos comandos antes de construir encima.
+vulnerabilidades altas heredadas de NestJS 10.
+
+El primer despliegue a AWS destapó por sí solo catorce problemas que ninguna prueba anterior podía
+detectar, porque todos dependían del comportamiento real de los servicios de AWS: la política de una
+clave KMS, un servicio apuntando a una imagen inexistente, la forma exacta de la afirmación `sub`
+que emite GitHub, RDS rechazando conexiones sin cifrar, y una imagen que no llevaba consigo los
+esquemas que el servicio hace cumplir, entre otros. Es la razón por la que conviene que el equipo
+repita estos mismos comandos antes de construir encima.
 
 ## Autenticación: el MFA es obligatorio
 
